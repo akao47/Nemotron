@@ -1,6 +1,6 @@
 # NVIDIA Nemotron Developer Repository
 
-**Open and efficient models for agentic AI.** Training recipes, deployment guides, and use-case examples for the Nemotron family.
+Developer companion repo for working with NVIDIA's Nemotron models: inference, fine-tuning, agents, visual reasoning, deployment, and complete training recipes.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -14,17 +14,6 @@
 **[Watch: Nemotron Overview](https://www.youtube.com/watch?v=_y9SEtn1lU8)**
 
 </div>
-
----
-
-## Why Nemotron?
-
-| | |
-|---|---|
-| **Open Models** | Fully transparent training data, techniques, and weights for community innovation |
-| **Compute Efficiency** | Model pruning and optimization enabling higher throughput via TensorRT-LLM |
-| **High Accuracy** | Built on frontier open models with human-aligned reasoning for agentic workflows |
-| **Flexible Deployment** | Deploy anywhere: edge, single GPU, or data center with NIM microservices |
 
 ---
 
@@ -44,38 +33,86 @@ nemotron/
 
 ## What is Nemotron?
 
-[NVIDIA Nemotron](https://www.nvidia.com/en-us/ai-data-science/foundation-models/nemotron/) is a family of open, high-efficiency multimodal models purpose-built for agentic AI.
+[NVIDIA Nemotron](https://developer.nvidia.com/nemotron) is a family of open, high-efficiency models with fully transparent training data, weights, and recipes.
 
-**Model Tiers:**
-
-- **Nano** — Optimized for edge and PC deployments
-- **Super** — Single GPU deployment with highest throughput
-- **Ultra** — Multi-GPU datacenter applications
-
-Nemotron models excel at coding, math, scientific reasoning, tool calling, instruction following, and visual reasoning. Deploy across edge, single GPU, or data center environments with support for NeMo, TensorRT-LLM, vLLM, SGLang, and NIM microservices.
+Nemotron models are designed for **agentic AI workflows**—they excel at coding, math, scientific reasoning, tool calling, instruction following, and visual reasoning. Models are optimized for deployment across edge, single GPU, and data center environments, with support for NeMo, TensorRT-LLM, vLLM, SGLang, and NIM microservices.
 
 ---
 
 ## Training Recipes
 
-- **[Usage Cookbook](usage-cookbook/)** - Practical deployment and simple model usage guides for Nemotron models
-- **[Use Case Examples](use-case-examples/)** - Practical use-case examples and apps *(more coming soon)*
+The Nemotron Training Cookbook provides complete, reproducible training pipelines that show the full journey from raw data to deployment-ready models. These implementations reflect how large language models are trained at leading AI labs—through rigorous, scientific processes with careful experimentation, validation gates, and systematic optimization.
+
+### Why Complete Training Pipelines
+
+Training a production model involves interconnected components where isolated examples miss critical interactions between stages. Complete pipelines show:
+
+- **How data quality affects downstream performance** across pretraining, SFT, and RL stages
+- **Which training techniques work together** in practice, not just theory
+- **Where validation gates prevent failures** and ensure reproducibility
+- **How to balance competing objectives** across training stages
+
+Because these are complete systems, practitioners can extract specific techniques with confidence—each component has been proven to work in a production context.
+
+### Available Recipes
+
+| Model | Description | Stages | Guide |
+|-------|-------------|--------|-------|
+| **[Nemotron 3 Nano](docs/train/nano3/README.md)** | 3.6B active / 31.6B total MoE Hybrid Mamba-Transformer for agentic reasoning | Pretrain → SFT → RL | [Training Guide](docs/train/nano3/README.md) |
+
+### Nemotron 3 Nano
+
+A complete training recipe for the open, efficient Mixture-of-Experts hybrid Mamba-Transformer model optimized for agentic reasoning.
+
+> **Open-Source Data Only**: These recipes train exclusively on the open-sourced subset of training data. Results will differ from the tech report benchmarks, which used additional proprietary data. Use these recipes as reference implementations to apply the methodology with your own data.
+
+**Model Specifications**:
+- 31.6B total parameters, 3.6B active per forward pass
+- 25 trillion pretraining tokens with curriculum learning
+- Up to 1M context length
+- 3.3x higher inference throughput than similarly sized models
+
+**What You Can Extract**:
+- Curriculum-based pretraining with two-phase data mixture
+- Long-context extension via CPT methodology
+- Multi-domain SFT with 12+ data sources
+- InfinityByte cross-domain code synthesis
+- Tool-calling fine-tuning and budget-controlled reasoning
+- Multi-environment RLVR with GRPO
+- GenRM reward modeling with circular comparison
+- DPO for tool hallucination reduction
+
+**Resources**:
+- [Training Guide](docs/train/nano3/README.md)
+- [Tech Report](https://arxiv.org/abs/2506.XXXXX)
+- [Model Weights (Base)](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16)
+- [Model Weights (Instruct)](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16)
+- [Model Weights (FP8)](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8)
 
 ---
 
-## 💡 Feature Requests & Ideas
+## Usage Cookbooks
 
-Have an idea for improving Nemotron models? Create a [Discussion](https://github.com/NVIDIA-NeMo/Nemotron/discussions) topic for it!
+Practical deployment and model usage guides for Nemotron models.
 
-If you have a feature request, feel free to open an [Issue](https://github.com/NVIDIA-NeMo/Nemotron/issues) and tag it as `enhancement`.
-
-Your feedback helps shape the future of Nemotron models!
+| Model | Best For | Key Features | Resources |
+|-------|----------|--------------|-----------|
+| [**Llama-3.3-Nemotron-Super-49B-v1.5**](https://huggingface.co/nvidia/Llama-3_3-Nemotron-Super-49B-v1_5) | Production deployments needing strong reasoning | 128K context, single H200 GPU, RAG & tool calling | [Cookbooks](./usage-cookbook/Llama-Nemotron-Super-49B-v1.5/) |
+| [**NVIDIA-Nemotron-Nano-9B-v2**](https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-9B-v2) | Resource-constrained environments | 9B params, hybrid Mamba-2, controllable reasoning | [Cookbooks](./usage-cookbook/Nemotron-Nano-9B-v2/) |
+| [**NVIDIA-Nemotron-Nano-12B-v2-VL**](https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL) | Document intelligence and video understanding | 12B VLM, video reasoning, Efficient Video Sampling | [Cookbooks](./usage-cookbook/Nemotron-Nano2-VL/) |
+| [**Llama-3.1-Nemotron-Safety-Guard-8B-v3**](https://huggingface.co/nvidia/Llama-3.1-Nemotron-Safety-Guard-8B-v3) | Multilingual content moderation | 9 languages, 23 safety categories | [Cookbooks](./usage-cookbook/Llama-3.1-Nemotron-Safety-Guard-V3/) |
+| **Nemotron-Parse** | Document parsing for RAG and AI agents | Table extraction, semantic segmentation | [Cookbooks](./usage-cookbook/Nemotron-Parse-v1.1/) |
 
 ---
 
-## Documentation
+## Use Case Examples
 
-Full, reproducible training pipelines will be included in the `nemotron` package at `src/nemotron/recipes/`.
+End-to-end examples demonstrating practical applications in the [`use-case-examples/`](./use-case-examples/) directory:
+
+- **Agentic Workflows** — Multi-step AI agents with planning, context management, and external tools
+- **RAG Systems** — Pipelines combining retrieval with Nemotron models for grounded outputs
+- **Tool Integration** — Structured tool calling, function execution, and data enrichment
+- **Production Patterns** — Scalability, monitoring, and deployment architectures
 
 ### Each Recipe Includes
 - 🎨 **Synthetic Data Generation** - Scripts to generate synthetic datasets using [NVIDIA-NeMo/DataDesigner](https://github.com/NVIDIA-NeMo/DataDesigner)
@@ -90,49 +127,25 @@ Full, reproducible training pipelines will be included in the `nemotron` package
 
 ---
 
-## Model Specific Usage Cookbooks
+## Feature Requests
 
-Learn how to deploy and use the models through an API.
-
-| Model | Best For | Key Features | Trade-offs | Resources |
-|-------|----------|--------------|------------|-----------|
-| [**Llama-3.3-Nemotron-Super-49B-v1.5**](https://huggingface.co/nvidia/Llama-3_3-Nemotron-Super-49B-v1_5) | Production deployments needing strong reasoning with efficiency | • 128K context<br>• Single H200 GPU<br>• RAG & tool calling<br>• Optimized via NAS | Balances accuracy & throughput | [📁 Cookbooks](./usage-cookbook/Llama-Nemotron-Super-49B-v1.5/) |
-| [**NVIDIA-Nemotron-Nano-9B-v2**](https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-9B-v2) | Resource-constrained environments needing flexible reasoning | • 9B params<br>• Hybrid Mamba-2 architecture<br>• Controllable reasoning traces<br>• Unified reasoning/non-reasoning | Smaller model with configurable reasoning | [📁 Cookbooks](./usage-cookbook/Nemotron-Nano-9B-v2/) |
-| [**NVIDIA-Nemotron-Nano-12B-v2-VL**](https://huggingface.co/nvidia/NVIDIA-Nemotron-Nano-12B-v2-VL) | Document intelligence and video understanding | • 12B VLM<br>• Video & multi-image reasoning<br>• Controllable reasoning (/think mode)<br>• Efficient Video Sampling (EVS) | Vision-language with configurable reasoning | [📁 Cookbooks](./usage-cookbook/Nemotron-Nano2-VL/) |
-| [**Llama-3.1-Nemotron-Safety-Guard-8B-v3**](https://huggingface.co/nvidia/Llama-3.1-Nemotron-Safety-Guard-8B-v3) | Multilingual content moderation with cultural nuance | • 9 languages<br>• 23 safety categories<br>• Cultural sensitivity<br>• NeMo Guardrails integration | Focused on safety/moderation tasks | [📁 Cookbooks](./usage-cookbook/Llama-3.1-Nemotron-Safety-Guard-V3/) |
-| **Nemotron-Parse** (link coming soon!) | Document parsing for RAG and AI agents | • VLM for document parsing<br>• Table extraction (LaTeX)<br>• Semantic segmentation<br>• Spatial grounding (bbox) | Specialized for document structure | [📁 Cookbooks](./usage-cookbook/Nemotron-Parse-v1.1/) |
-
-
-
-## Nemotron Use Case Examples
-
-Below is an outline of the end-to-end use case examples provided in the [`use-case-examples`](./use-case-examples/) directory. These scenarios demonstrate practical applications that go beyond basic model inference.
-
-### What You'll Find
-
-- **Agentic Workflows**  
-  Orchestration of multi-step AI agents, integrating planning, context management, and external tools/APIs.
-
-- **Retrieval-Augmented Generation (RAG) Systems**  
-  Building pipelines that combine retrieval components (vector databases, search APIs) with Nemotron models for grounded, accurate outputs.
-
-- **Integration with External Tools & APIs**  
-  Examples of Nemotron models powering applications with structured tool calling, function execution, or data enrichment.
-
-- **Production-Ready Application Patterns**  
-  Architectures supporting scalability, monitoring, data pipelines, and real-world deployment considerations.
-
-> See the [`use-case-examples/`](./use-case-examples/) subfolders for in-depth, runnable examples illustrating these concepts.
-
-## Contributing
-
-We welcome contributions: examples, recipes, or other tools. Please read the [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
+Have an idea for improving Nemotron models? Visit the **[Nemotron Ideas Portal](https://nemotron.ideas.nvidia.com/)** to vote on existing requests or submit your own.
 
 ---
 
 ## Security
 
-To report any vulnerabilities, please reach out to [security@nvidia.com](mailto:security@nvidia.com)
+- [Nemotron 3 Nano Training Guide](docs/train/nano3/README.md) — Complete training recipe
+- [NeMo-Run Configuration](docs/train/nemo-run.md) — Execution profiles and job orchestration
+- [Data Preparation](docs/train/data-prep.md) — Data preparation module documentation
+- [Contributing Guidelines](CONTRIBUTING.md) — How to contribute
+- [Changelog](CHANGELOG.md) — Version history
+
+---
+
+## Contributing
+
+We welcome contributions—examples, recipes, or other tools. Please read the [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
 
 ---
 
@@ -142,4 +155,4 @@ Apache 2.0 License — see [LICENSE](LICENSE) for details.
 
 ---
 
-**NVIDIA Nemotron** — Open and efficient models for agentic AI.
+**NVIDIA Nemotron** — Open, transparent, and reproducible.

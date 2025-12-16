@@ -19,14 +19,14 @@ from pathlib import Path
 
 import pytest
 
-from nemo_runspec.artifact_registry import (
+from nemotron.kit.exceptions import ArtifactNotFoundError, ArtifactVersionNotFoundError
+from nemotron.kit.registry import (
     ArtifactEntry,
     ArtifactRegistry,
     ArtifactVersion,
-    get_artifact_registry,
-    set_artifact_registry,
+    get_registry,
+    set_registry,
 )
-from nemo_runspec.exceptions import ArtifactNotFoundError, ArtifactVersionNotFoundError
 
 
 class TestArtifactVersion:
@@ -412,20 +412,20 @@ class TestArtifactRegistryFsspec:
 class TestGlobalRegistry:
     """Tests for global registry functions."""
 
-    def test_get_artifact_registry_not_initialized(self):
-        """Test that get_artifact_registry raises when not initialized."""
-        set_artifact_registry(None)
+    def test_get_registry_not_initialized(self):
+        """Test that get_registry raises when not initialized."""
+        set_registry(None)
         with pytest.raises(RuntimeError, match="not initialized"):
-            get_artifact_registry()
+            get_registry()
 
-    def test_set_and_get_artifact_registry(self):
+    def test_set_and_get_registry(self):
         """Test setting and getting global registry."""
         with tempfile.TemporaryDirectory() as tmpdir:
             root = Path(tmpdir) / "registry"
             registry = ArtifactRegistry(backend="fsspec", root=root)
 
-            set_artifact_registry(registry)
-            assert get_artifact_registry() is registry
+            set_registry(registry)
+            assert get_registry() is registry
 
             # Cleanup
-            set_artifact_registry(None)
+            set_registry(None)

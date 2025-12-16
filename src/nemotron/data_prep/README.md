@@ -1,6 +1,6 @@
 # nemotron.data_prep
 
-Distributed data preparation for LLM training, built on cosmos-xenna pipelines.
+Distributed data preparation for LLM training, built on Ray.
 
 ## Overview
 
@@ -9,221 +9,134 @@ training formats for Megatron-Bridge and Megatron-Core:
 
 - **bin/idx** - Tokenized indexed datasets for pretraining
 - **JSONL** - Structured records for SFT/RL (with optional transforms)
-- **Packed Parquet** - Packed sequences with loss masking for Chat SFT
-
-## Library / Cookbook Boundary
-
-```
-Library (shared infrastructure — will be extracted to a package):
-    core/      — Planning, receipts, finalize, work items
-    stages/    — Reusable xenna stages (PlanStage, DownloadStage, terminal stages)
-    recipes/   — Pipeline building blocks (setup, execute, finalize, adapters)
-
-Cookbook (fork and customize):
-    recipes/nano3/   — Complete scripts for Nano3 model family
-
-To customize: fork a cookbook script, modify the stage list.
-```
-
-Each cookbook `data_prep.py` script shows the full pipeline flow in one file:
-
-```python
-# Phase 1: Setup — deterministic hashing, work item creation
-items, context, resolved_tok = setup_pretrain_run(blend, cfg.output_dir, cfg.tokenizer, ...)
-
-# Phase 2: 3-stage pipeline (visible — add/swap/remove stages here)
-if items:
-    ctx = PipelineContext(...)
-    stages = [
-        StageSpec(PlanStage(cfg.plan, ctx, PretrainPlanAdapter()), num_workers=1),
-        StageSpec(DownloadStage(cfg.download, ctx), num_workers_per_node=1),
-        StageSpec(BinIdxTokenizationStage(cfg.tokenization, ctx), slots_per_actor=1),
-    ]
-    spec = pipelines_v1.PipelineSpec(
-        input_data=items,
-        stages=stages,
-        config=pipelines_v1.PipelineConfig(
-            execution_mode=resolve_execution_mode(stages, cfg.execution_mode),
-        ),
-    )
-    with pipeline_wandb_hook(items, ctx, "pretrain"):
-        pipelines_v1.run_pipeline(spec)
-
-# Phase 3: Finalize — scan receipts, aggregate stats
-result = finalize_pretrain_run(context, blend, cfg.output_dir)
-```
+- **Packed .npy** - Packed sequences for efficient SFT training
+- **Chat SFT** - Packed sequences with role-based loss masking
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    subgraph cookbook["Cookbook Scripts (fork these)"]
-        pretrain_script["recipes/nano3/stage0_pretrain/data_prep.py"]
-        sft_script["recipes/nano3/stage1_sft/data_prep.py"]
-        rl_script["recipes/nano3/stage2_rl/data_prep.py"]
+    subgraph api["User Entry Points"]
+        high["run_data_prep(DataPrepConfig)<br/>High-Level API"]
+        low["last_mile_process(...)<br/>Low-Level API"]
     end
 
-    subgraph recipes["Recipe Building Blocks"]
-        setup["setup_*_run()"]
-        finalize["finalize_*_run()"]
-        adapters["PlanAdapters<br/>(Pretrain, Sft, Jsonl)"]
-        wandb_hook["pipeline_wandb_hook<br/>(observability)"]
-        exec_mode["resolve_execution_mode<br/>(auto → streaming/batch)"]
+    subgraph orchestration["Pipeline Orchestration"]
+        pipeline["pipeline.py"]
     end
 
-    subgraph stages["Reusable Xenna Stages"]
-        plan["PlanStage<br/>(fan-out)"]
-        download["DownloadStage<br/>(HF/S3/GCS)"]
-        binidx["BinIdxTokenization<br/>Stage"]
-        packed_sft["PackedSftParquet<br/>Stage"]
-        jsonl_shard["JsonlShard<br/>Stage"]
+    subgraph processors["Ray Actor Pool (Processors)"]
+        shard["ShardProc.<br/>(bin/idx)"]
+        jsonl["JsonlProc.<br/>(jsonl)"]
+        packed["PackedProc.<br/>(.npy)"]
+        chat["ChatSftProc.<br/>(.npy + loss)"]
     end
 
-    subgraph core["Core Processing"]
-        shard_proc["shard_processor.py<br/>(bin/idx)"]
-        chat_core["chat_sft_shard_core.py<br/>(spool + parquet)"]
-        jsonl_core["jsonl_shard_core.py<br/>(JSONL)"]
-    end
-
-    pretrain_script --> setup & finalize & wandb_hook & exec_mode
-    sft_script --> setup & finalize & wandb_hook & exec_mode
-    rl_script --> setup & finalize & wandb_hook & exec_mode
-
-    pretrain_script --> plan --> download
-    download --> binidx & packed_sft & jsonl_shard
-
-    binidx --> shard_proc
-    packed_sft --> chat_core
-    jsonl_shard --> jsonl_core
+    high --> pipeline
+    low --> pipeline
+    pipeline --> shard
+    pipeline --> jsonl
+    pipeline --> packed
+    pipeline --> chat
 ```
 
 ## Module Structure
 
 ```
 src/nemotron/data_prep/
-├── __init__.py              # Public API exports
-├── api.py                   # Public facade (recipe re-exports)
-├── blend.py                 # DataBlend specification
-├── config.py                # Configuration dataclasses
-│
-├── core/                    # Core processing logic
-│   ├── __init__.py          # process_*_core function aliases
-│   ├── chat_sft_shard_core.py # Chat SFT core processing
-│   ├── chat_template.py     # Chat templating utilities
-│   ├── finalize.py          # Receipt scanning & aggregation
-│   ├── jsonl_shard_core.py  # JSONL core processing
-│   ├── planning.py          # Shard planning & assignment
-│   ├── providers.py         # Tokenizer factories
-│   ├── receipt.py           # Receipt lifecycle (atomic writes, verification)
-│   ├── shard_processor.py   # bin/idx core processing
-│   └── work_items.py        # Work item dataclasses
-│
-├── formats/                 # Output format builders
-│   ├── __init__.py
-│   ├── indexed_dataset.py   # bin/idx writer
-│   ├── jsonl_dataset.py     # JSONL writer
-│   └── transforms.py        # Transform factories
-│
-├── observability/           # Observability utilities
-│   ├── __init__.py          # W&B and stage naming exports
-│   ├── stage_keys.py        # Stage naming conventions
-│   └── wandb_hook.py        # W&B real-time logging (plan/progress/stage tables)
-│
-├── packing/                 # Sequence packing
-│   ├── __init__.py
-│   ├── algorithms.py        # Packing algorithms
-│   ├── bin_assignment.py    # Bin assignment logic
-│   ├── builder.py           # Sequence builder
-│   ├── materialize.py       # Bin materialization
-│   ├── spool.py             # Sequence spool I/O
-│   └── writers.py           # Parquet shard writer
-│
-├── recipes/                 # Pipeline building blocks + convenience wrappers
-│   ├── __init__.py
-│   ├── execution_mode.py    # Execution mode auto-detection
-│   ├── pretrain.py          # setup/finalize + PretrainPlanAdapter
-│   ├── rl.py                # setup/finalize + JsonlPlanAdapter
-│   └── sft.py               # setup/finalize + SftPlanAdapter
-│
-├── stages/                  # Reusable xenna pipeline stages
-│   ├── __init__.py          # Stage + PlanAdapter exports
-│   ├── context.py           # PipelineContext shared state
-│   ├── download.py          # DownloadStage (HF/S3/GCS/local)
-│   ├── jsonl_plan.py        # JsonlPlanStageConfig
-│   ├── jsonl_write.py       # JsonlShardStage
-│   ├── megatron_bin_idx.py  # BinIdxTokenizationStage
-│   ├── packed_sft_parquet.py # PackedSftParquetStage
-│   ├── plan.py              # PlanStage + PlanAdapter protocol
-│   └── sft_plan.py          # SftPlanStageConfig
-│
-├── utils/                   # Utilities
-│   ├── __init__.py
-│   ├── discovery.py         # Dataset metadata fetching (HF API)
-│   ├── filesystem.py        # Cloud-native file I/O (fsspec)
-│   ├── hf_env.py            # HuggingFace environment
-│   ├── hf_placeholder.py    # HF placeholder resolution
-│   ├── size.py              # Size parsing & formatting
-│   └── splits.py            # Split utilities
-│
-└── templates/
-    └── nano3.jinja          # Nano3 chat template
+├── __init__.py           # Public API exports
+├── __main__.py           # CLI entry point
+├── cli.py                # CLI commands (run, status, verify)
+├── config.py             # Configuration dataclasses
+├── pipeline.py           # Pipeline orchestration
+├── planning.py           # Shard planning & assignment
+├── discovery.py          # Dataset metadata fetching
+├── providers.py          # Tokenizer factories
+├── blend.py              # DataBlend specification
+├── formats/
+│   ├── transforms.py     # Transform factories (sft, openai_chat, etc.)
+│   ├── indexed_dataset.py# bin/idx writer
+│   └── jsonl_dataset.py  # JSONL writer
+├── shard_processor.py    # bin/idx Ray actor
+├── jsonl_processor.py    # JSONL Ray actor
+├── packed_processor.py   # Packed .npy Ray actor
+├── chat_sft_processor.py # Chat SFT Ray actor
+├── chat_template.py      # Chat templating utilities
+├── filesystem.py         # Cloud-native file I/O (fsspec)
+└── console.py            # Rich terminal UI
 ```
 
 ## Quick Start
 
-### Pretrain Pipeline (bin/idx)
+### High-Level API (Tokenization)
+
+For simple tokenization to bin/idx format:
 
 ```python
-from nemotron.data_prep import DataBlend, run_pretrain_pipeline
+from nemotron.data_prep import DataPrepConfig, run_data_prep
+from pathlib import Path
 
-blend = DataBlend.load("pretrain_blend.json")
-result = run_pretrain_pipeline(
-    blend=blend,
-    output_dir="./output",
-    tokenizer="nvidia/NVIDIA-Nemotron-Nano-9B-v2",
-    num_shards=128,
+config = DataPrepConfig(
+    blend_path=Path("data_blend.json"),
+    output_dir=Path("./output"),
+    tokenizer_model="nvidia/NVIDIA-Nemotron-Nano-9B-v2",
 )
-
-print(f"Run hash: {result.run_hash}")
-print(f"Total tokens: {result.total_tokens:,}")
+artifact = run_data_prep(config)
 ```
 
-### SFT Pipeline (Packed Parquet)
+### Low-Level API (Custom Formats)
+
+For more control over output format:
 
 ```python
-from nemotron.data_prep import DataBlend, run_sft_pipeline
+from nemotron.data_prep import last_mile_process, DataBlend, PipelineConfig
+from nemotron.data_prep.config import OutputConfig, JsonlOutputConfig
+from nemotron.data_prep.formats.transforms import sft
 
-blend = DataBlend.load("sft_blend.json")
-result = run_sft_pipeline(
-    blend=blend,
-    output_dir="./output",
-    tokenizer="nvidia/NVIDIA-Nemotron-Nano-9B-v2",
-    num_shards=64,
-    chat_template="nano3",
-    pack_size=4096,
+blend = DataBlend.load("data_blend.json")
+config = PipelineConfig(
+    output=OutputConfig(
+        dir=Path("./sft_data"),
+        format=JsonlOutputConfig(
+            transform=sft(input="instruction", output="response"),
+        ),
+    ),
 )
+result = last_mile_process(blend, config)
+```
 
-print(f"Run hash: {result.run_hash}")
-print(f"Total sequences: {result.total_sequences:,}")
+## CLI Usage
+
+```bash
+# Run tokenization
+python -m nemotron.data_prep run config.yaml ./output
+
+# Check pipeline status
+python -m nemotron.data_prep status ./output
+
+# Verify output integrity
+python -m nemotron.data_prep verify ./output <run-hash>
 ```
 
 ## Output Formats
 
-| Format | Recipe | Output | Use Case |
-|--------|--------|--------|----------|
-| bin/idx | `run_pretrain_pipeline()` | `.bin/.idx` pairs | Pretraining |
-| Packed Parquet | `run_sft_pipeline()` | `.parquet` files | Chat SFT |
-| JSONL | Stage scripts | `.jsonl` files | RL training |
+| Format | Config Class | Output | Use Case |
+|--------|--------------|--------|----------|
+| bin/idx | `BinIdxOutputConfig` | `.bin/.idx` pairs | Pretraining |
+| JSONL | `JsonlOutputConfig` | `.jsonl` files | SFT/RL with transforms |
+| Packed | `PackedOutputConfig` | `.npy` files | Efficient SFT |
+| Chat SFT | `ChatSftOutputConfig` | `.npy` + loss masks | SFT with chat templates |
 
 ## Built-in Transforms
 
-For JSONL output (via stage scripts), use transforms to convert input records:
+For JSONL output, use transforms to convert input records:
 
 ```python
 from nemotron.data_prep.formats.transforms import (
     sft,           # SFT format: {input, output}
     openai_chat,   # OpenAI format: {messages: [...]}
     sharegpt,      # ShareGPT format: {conversations: [...]}
+    nemotron_rl,   # RL format for Nemotron training
     passthrough,   # Pass records unchanged
     select,        # Select specific fields
     rename,        # Rename fields
@@ -232,29 +145,31 @@ from nemotron.data_prep.formats.transforms import (
 
 ## Full Documentation
 
-See [docs/nemotron/data-prep.md](../../../docs/nemotron/data-prep.md) for complete API reference.
+See [docs/train/data-prep.md](../../../docs/train/data-prep.md) for complete API reference including:
+
+- All configuration options
+- Transform factory details
+- Sharding configuration
+- Per-split output
+- Compression options
+- Type definitions
 
 ## Key Design Principles
 
-1. **Xenna-based pipelines** - Distributed processing via cosmos-xenna stages
+1. **Ray-based parallelism** - Distributed processing via long-lived actors
 2. **Deterministic output** - Frozen shard plans ensure reproducibility
 3. **Cloud-native** - fsspec for S3/GCS/local file handling
-4. **Resumable** - Skip completed shards on restart via receipts
+4. **Resumable** - Skip completed shards on restart
 5. **Artifact tracking** - W&B integration for lineage
 
-## Usage in Cookbook Recipes
+## Usage in Nano3 Recipes
 
-Each training stage uses data_prep with the three-phase pattern (setup → pipeline → finalize):
+Each training stage uses data_prep differently:
 
-| Stage | Building Blocks | Adapter | Output Format |
-|-------|----------------|---------|---------------|
-| Stage 0 (Pretrain) | `setup_pretrain_run` / `finalize_pretrain_run` | `PretrainPlanAdapter` | bin/idx |
-| Stage 1 (SFT) | `setup_sft_run` / `finalize_sft_run` | `SftPlanAdapter` | Packed Parquet |
-| Stage 2 (RL) | `setup_rl_run` / `finalize_rl_run` | `JsonlPlanAdapter` | JSONL |
+| Stage | API | Output Format | Config |
+|-------|-----|---------------|--------|
+| Stage 0 (Pretrain) | `run_data_prep()` | bin/idx | `PerSplitConfig` |
+| Stage 1 (SFT) | `last_mile_process()` | Chat SFT .npy | `ChatSftOutputConfig` |
+| Stage 2 (RL) | `last_mile_process()` | JSONL | `JsonlOutputConfig` |
 
-Pipeline execution uses `pipeline_wandb_hook` (W&B observability) + `resolve_execution_mode` (auto-detect streaming/batch) + explicit `pipelines_v1.run_pipeline(spec)`.
-
-Convenience wrappers (`run_pretrain_pipeline`, `run_sft_pipeline`, `run_rl_resolve_pipeline`)
-are still available for simple usage.
-
-See the stage-specific `data_prep.py` files in `nemotron/recipes/nano3/` for examples.
+See the stage-specific `data_prep.py` files for implementation examples.
