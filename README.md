@@ -7,14 +7,6 @@ Developer companion repo for working with NVIDIA's Nemotron models: inference, f
 [![Contributions Welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Docs](https://img.shields.io/badge/docs-dev-76B900.svg)](https://nvidia-nemo.github.io/Nemotron/dev/)
 
-<div align="center">
-
-[![Watch the Nemotron Overview](https://img.youtube.com/vi/_y9SEtn1lU8/hqdefault.jpg)](https://www.youtube.com/watch?v=_y9SEtn1lU8)
-
-**[Watch: Nemotron Overview](https://www.youtube.com/watch?v=_y9SEtn1lU8)**
-
-</div>
-
 ---
 
 ## Repository Overview
