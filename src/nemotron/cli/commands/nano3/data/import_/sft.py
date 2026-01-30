@@ -21,8 +21,8 @@ from pathlib import Path
 import typer
 
 from nemotron.kit.artifact import DataBlendsArtifact
-from nemo_runspec.env import get_wandb_config
-from nemotron.kit.wandb_kit import WandbConfig, init_wandb_if_configured
+from nemotron.kit.cli.env import get_wandb_config
+from nemotron.kit.wandb import WandbConfig, init_wandb_if_configured
 
 
 def sft(

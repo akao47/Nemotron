@@ -12,35 +12,55 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Data prep command group for nano3.
-
-Design: LLM-Native Recipe Architecture
-- Uses RecipeTyper for standardized command registration
-- Each command module has visible execution logic
-"""
+"""Data prep command group for nano3."""
 
 from __future__ import annotations
 
-from nemotron.cli.commands.nano3.data.prep.pretrain import META as PRETRAIN_META, pretrain
-from nemotron.cli.commands.nano3.data.prep.rl import META as RL_META, rl
-from nemotron.cli.commands.nano3.data.prep.sft import META as SFT_META, sft
-from nemo_runspec.recipe_typer import RecipeTyper
+import typer
 
-# Create prep app using RecipeTyper
-prep_app = RecipeTyper(
+from nemotron.cli.nano3.data.prep.pretrain import pretrain
+from nemotron.cli.nano3.data.prep.rl import rl
+from nemotron.cli.nano3.data.prep.sft import sft
+from nemotron.cli.nano3.help import make_recipe_command
+
+# Create prep app
+prep_app = typer.Typer(
     name="prep",
     help="Prepare data for training stages",
     no_args_is_help=True,
     rich_markup_mode="rich",
 )
 
-# =============================================================================
-# Register Data Prep Commands
-#
-# All data prep commands use Ray + code packager + xenna.
-# Execution logic is visible in each command module.
-# =============================================================================
+# Register commands with custom help and allow_extra_args for dotlist overrides
+prep_app.command(
+    name="pretrain",
+    context_settings={
+        "allow_extra_args": True,
+        "ignore_unknown_options": True,
+    },
+    cls=make_recipe_command(
+        config_dir="src/nemotron/recipes/nano3/stage0_pretrain/config/data_prep",
+    ),
+)(pretrain)
 
-prep_app.add_recipe_command(pretrain, meta=PRETRAIN_META)
-prep_app.add_recipe_command(sft, meta=SFT_META)
-prep_app.add_recipe_command(rl, meta=RL_META)
+prep_app.command(
+    name="sft",
+    context_settings={
+        "allow_extra_args": True,
+        "ignore_unknown_options": True,
+    },
+    cls=make_recipe_command(
+        config_dir="src/nemotron/recipes/nano3/stage1_sft/config/data_prep",
+    ),
+)(sft)
+
+prep_app.command(
+    name="rl",
+    context_settings={
+        "allow_extra_args": True,
+        "ignore_unknown_options": True,
+    },
+    cls=make_recipe_command(
+        config_dir="src/nemotron/recipes/nano3/stage2_rl/config/data_prep",
+    ),
+)(rl)
