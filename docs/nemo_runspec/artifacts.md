@@ -1,8 +1,8 @@
 # Artifact Lineage & W&B Integration
 
-The Nemotron training pipeline provides complete lineage tracking from raw data to final model through [Weights & Biases](./wandb.md) artifacts. Every data transformation and model checkpoint is versioned and linked, enabling full reproducibility and traceability.
+The Nemotron training pipeline provides complete lineage tracking from raw data to final model through [Weights & Biases](../nemotron/wandb.md) artifacts. Every data transformation and model checkpoint is versioned and linked, enabling full reproducibility and traceability.
 
-> **Note**: The artifact system currently requires [W&B](./wandb.md). Backend-agnostic artifact tracking is in development.
+> **Note**: The artifact system currently requires [W&B](../nemotron/wandb.md). Backend-agnostic artifact tracking is in development.
 
 ## Why Lineage Matters
 
@@ -54,8 +54,8 @@ flowchart TB
 | `ModelArtifact-pretrain` | [0](./nano3/pretrain.md) | checkpoint | Base model after pretraining |
 | `DataBlendsArtifact-sft` | [1](./nano3/sft.md) | .npy | Packed SFT sequences with loss masks |
 | `ModelArtifact-sft` | [1](./nano3/sft.md) | checkpoint | Instruction-tuned model |
-| `DataBlendsArtifact-rl` | [2](./nano3/rl.md) | JSONL | RL prompts for [NeMo-RL](./nvidia-stack.md#nemo-rl) |
-| `ModelArtifact-rl` | [2](./nano3/rl.md) | checkpoint | Final aligned model |
+| `DataBlendsArtifact-rl` | [2](../nemotron/nano3/rl.md) | JSONL | RL prompts for [NeMo-RL](../nemotron/nvidia-stack.md#nemo-rl) |
+| `ModelArtifact-rl` | [2](../nemotron/nano3/rl.md) | checkpoint | Final aligned model |
 
 ## W&B Configuration
 
@@ -87,14 +87,14 @@ art://ModelArtifact-rl:production            # Alias
 
 ### CLI Options
 
-Override artifact inputs via [CLI](./cli.md#artifact-inputs):
+Override artifact inputs via [CLI](./cli.md#artifact-resolution) dotlist overrides:
 
 ```bash
 # Use specific data artifact
-uv run nemotron nano3 pretrain --art.data DataBlendsArtifact-pretrain:v2
+uv run nemotron nano3 pretrain run.data=DataBlendsArtifact-pretrain:v2
 
 # Use imported model
-uv run nemotron nano3 sft --art.model my-custom-pretrain:latest
+uv run nemotron nano3 sft run.model=my-custom-pretrain:latest
 ```
 
 ### Config Resolvers
@@ -194,7 +194,7 @@ print(f"Training step: {model.step}")
 print(f"Loss: {model.loss}")
 ```
 
-For framework details, see [Nemotron Kit](./kit.md).
+For framework details, see [Nemotron Kit](../nemotron/kit.md).
 
 ## Creating Custom Artifacts
 
@@ -295,10 +295,10 @@ class ProcessedDataArtifact(Artifact):
 
 ## Further Reading
 
-- [Nemotron Kit](./kit.md) — Artifact system internals
+- [Nemotron Kit](../nemotron/kit.md) — Artifact system internals
 - [OmegaConf Configuration](./omegaconf.md) — `${art:...}` interpolations and lineage
-- [W&B Integration](./wandb.md) — Credentials and configuration
+- [W&B Integration](../nemotron/wandb.md) — Credentials and configuration
 - [Importing Models & Data](./nano3/import.md) — Import commands and directory structures
 - [CLI Framework](./cli.md) — CLI building and artifact inputs
-- [Data Preparation](./data-prep.md) — Data preparation module
+- [Data Preparation](../nemotron/data-prep.md) — Data preparation module
 - [Nano3 Recipe](./nano3/README.md) — Complete training pipeline

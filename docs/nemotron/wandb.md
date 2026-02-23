@@ -1,8 +1,8 @@
 # Weights & Biases Integration
 
-Nemotron automatically passes W&B credentials and settings to containers running via nemo-run. `nemotron.kit.wandb_kit` handles W&B initialization; `nemo_runspec.execution` handles credential injection into executors. You don't need to manage credentials manually across local, Docker, Slurm, or cloud executors.
+Nemotron provides automatic W&B configuration that seamlessly passes credentials and settings to containers running via nemo-run. `nemotron.kit.wandb` handles W&B initialization and `nemo_runspec.execution` handles credential injection into executors. This eliminates manual credential management across local, Docker, Slurm, and cloud executors.
 
-> **Note**: W&B is recommended for full lineage tracking and team collaboration. A file-based backend is also available for local development—set `[artifacts] backend = "file"` in your `env.toml`.
+> **Note**: The artifact system currently requires W&B. Backend-agnostic artifact tracking is in development.
 
 ## Configuration
 
@@ -43,11 +43,11 @@ When you run jobs via nemo-run, `nemo_runspec.execution.build_env_vars()` automa
 
 This works across all executor types:
 
-- **Local** – environment variables set directly
-- **Docker** – passed via container env vars
-- **Slurm** – included in job submission
-- **SkyPilot** – set in cloud instance environment
-- **Ray** – passed via `runtime_env.env_vars`
+- **Local** — Environment variables set directly
+- **Docker** — Passed via container env vars
+- **Slurm** — Included in job submission
+- **SkyPilot** — Set in cloud instance environment
+- **Ray** — Passed via `runtime_env.env_vars`
 
 ### How It Works
 
@@ -62,7 +62,7 @@ if "WANDB_API_KEY" not in merged_env:
         merged_env["WANDB_API_KEY"] = api_key
 
 # Load project/entity from env.toml [wandb] section
-wandb_config = get_wandb_config()
+wandb_config = load_wandb_config()
 if wandb_config is not None:
     if wandb_config.project:
         merged_env["WANDB_PROJECT"] = wandb_config.project
@@ -89,7 +89,7 @@ For scripts that support optional W&B tracking:
 
 ```python
 from nemotron.kit import init_wandb_if_configured
-from nemotron.kit.wandb_kit import WandbConfig
+from nemotron.kit.wandb import WandbConfig
 
 # Initialize only if WandbConfig is provided and has a project set
 wandb_config = WandbConfig(project="nemotron", entity="my-team")
@@ -101,7 +101,7 @@ init_wandb_if_configured(wandb_config, job_type="training")
 The `WandbConfig` dataclass provides typed configuration:
 
 ```python
-from nemotron.kit.wandb_kit import WandbConfig
+from nemotron.kit.wandb import WandbConfig
 
 config = WandbConfig(
     project="nemotron",           # Required to enable tracking
@@ -118,7 +118,7 @@ if config.enabled:
 
 ## Artifact Lineage
 
-W&B artifacts provide lineage tracking. See [Artifact Lineage](./artifacts.md) for details on:
+W&B artifacts provide full lineage tracking. See [Artifact Lineage](./artifacts.md) for details on:
 
 - End-to-end lineage from raw data to final model
 - Semantic URIs for artifact references
@@ -131,7 +131,7 @@ W&B artifacts provide lineage tracking. See [Artifact Lineage](./artifacts.md) f
 The kit automatically patches checkpoint saving to log artifacts to W&B:
 
 ```python
-from nemotron.kit.wandb_kit import patch_wandb_checkpoint_logging
+from nemotron.kit.wandb import patch_wandb_checkpoint_logging
 
 # Patch Megatron-Bridge checkpoint saving
 patch_wandb_checkpoint_logging()
@@ -147,7 +147,7 @@ This enables:
 For reinforcement learning with NeMo-RL:
 
 ```python
-from nemotron.kit.wandb_kit import patch_nemo_rl_checkpoint_logging
+from nemotron.kit.wandb import patch_nemo_rl_checkpoint_logging
 
 # Patch NeMo-RL checkpoint saving
 patch_nemo_rl_checkpoint_logging()
@@ -158,7 +158,7 @@ patch_nemo_rl_checkpoint_logging()
 When using seeded random states (common in RL), W&B's default run ID generation can fail. The kit provides a patch:
 
 ```python
-from nemotron.kit.wandb_kit import patch_wandb_runid_for_seeded_random
+from nemotron.kit.wandb import patch_wandb_runid_for_seeded_random
 
 # Fix "Invalid Client ID digest" errors
 patch_wandb_runid_for_seeded_random()
@@ -208,12 +208,12 @@ For Ray data prep jobs, credentials are passed via `runtime_env.env_vars`. Ensur
 
 | Export | Module | Description |
 |--------|--------|-------------|
-| `get_wandb_config()` | `nemo_runspec.env` | Load W&B config from env.toml |
+| `load_wandb_config()` | `nemo_runspec.env` | Load `WandbConfig` from env.toml |
 | `build_env_vars()` | `nemo_runspec.execution` | Build env vars with auto W&B detection |
 
 ## Further Reading
 
-- [OmegaConf Configuration](../nemo_runspec/omegaconf.md) – artifact interpolations and unified logging patches
-- [Artifact Lineage](./artifacts.md) – lineage tracking and W&B UI
-- [Nemotron Kit](./kit.md) – artifact system and lineage tracking
-- [Execution through NeMo-Run](../nemo_runspec/nemo-run.md) – execution profiles and env.toml
+- [OmegaConf Configuration](./omegaconf.md) — Artifact interpolations and unified logging patches
+- [Artifact Lineage](./artifacts.md) — Full lineage tracking and W&B UI
+- [Nemotron Kit](./kit.md) — Artifact system and lineage tracking
+- [Execution through NeMo-Run](./nemo-run.md) — Execution profiles and env.toml

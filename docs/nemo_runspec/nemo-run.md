@@ -1,6 +1,6 @@
 # Execution through NeMo-Run
 
-Nemotron recipes use [NeMo-Run](https://github.com/NVIDIA-NeMo/Run) for job orchestration. NeMo-Run is an NVIDIA tool for configuring, executing, and managing ML experiments across computing environments.
+Nemotron recipes use [NeMo-Run](https://github.com/NVIDIA-NeMo/Run) for job orchestration. NeMo-Run is an NVIDIA tool that streamlines configuration, execution, and management of ML experiments across computing environments.
 
 > **Note**: This release has been tested primarily with Slurm execution. Support for additional executors is planned.
 
@@ -35,10 +35,10 @@ flowchart LR
     Executor --> Cloud
 ```
 
-**Core concepts:**
-- **Executor** – where to run (local, Docker, Slurm, cloud)
-- **Packager** – how to package code for the executor
-- **Launcher** – how to launch the process (torchrun, direct)
+**Key concepts:**
+- **Executor**: Where to run (local, Docker, Slurm, cloud)
+- **Packager**: How to package code for the executor
+- **Launcher**: How to launch the process (torchrun, direct)
 
 For full documentation, see the [NeMo-Run GitHub repository](https://github.com/NVIDIA-NeMo/Run).
 
@@ -59,7 +59,7 @@ uv run nemotron nano3 pretrain -c tiny --run YOUR-CLUSTER --dry-run
 
 ## Execution Profiles
 
-The `nemo_runspec` package adds an `env.toml` configuration layer on top of NeMo-Run. This gives you declarative execution profiles that integrate with the CLI. This is a **Nemotron-specific feature** -- standard NeMo-Run requires programmatic configuration.
+The `nemo_runspec` package provides an `env.toml` configuration layer on top of NeMo-Run, enabling declarative execution profiles that integrate natively with the CLI. This is a **Nemotron-specific feature** -- standard NeMo-Run requires programmatic configuration.
 
 Create an `env.toml` in your project root. Each section defines a named execution profile that can be referenced via `--run <profile>` or `--batch <profile>`:
 
@@ -280,7 +280,7 @@ Override config values using Hydra-style syntax:
 uv run nemotron nano3 pretrain --run YOUR-CLUSTER train.train_iters=5000
 
 # Override nodes
-uv run nemotron nano3 pretrain --run YOUR-CLUSTER run.env.nodes=8
+uv run nemotron nano3 pretrain --run YOUR-CLUSTER run.nodes=8
 ```
 
 ## env.toml Reference
@@ -482,7 +482,7 @@ uv run nemotron nano3 rl -c tiny --run YOUR-CLUSTER
 
 ## Further Reading
 
-- [NeMo-Run GitHub](https://github.com/NVIDIA-NeMo/Run) – full documentation
-- [W&B Integration](../nemotron/wandb.md) – credential handling
-- [Nemotron Kit](../nemotron/kit.md) – artifact system and lineage tracking
-- [CLI Framework](../nemotron/cli.md) – building recipe CLIs
+- [NeMo-Run GitHub](https://github.com/NVIDIA-NeMo/Run) — Full documentation
+- [W&B Integration](../nemotron/wandb.md) — Automatic credential handling
+- [Nemotron Kit](../nemotron/kit.md) — Artifact system and lineage tracking
+- [CLI Framework](./cli.md) — Building recipe CLIs

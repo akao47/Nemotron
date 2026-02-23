@@ -15,9 +15,9 @@ This stage aligns the instruction-tuned model using GRPO (Group Relative Policy 
 ### RL Pipeline Overview
 
 The RL pipeline consists of three components:
-1. **RLVR** – multi-environment training with verifiable rewards
-2. **RLHF with GenRM** – generative reward model-based alignment
-3. **DPO** – preference learning to reduce tool hallucination
+1. **RLVR** — Multi-environment training with verifiable rewards
+2. **RLHF with GenRM** — Generative reward model-based alignment
+3. **DPO** — Preference learning to reduce tool hallucination
 
 ### Data Preparation Pipeline
 
@@ -58,7 +58,7 @@ The [Nemotron-3-Nano-RL-Training-Blend](https://huggingface.co/datasets/nvidia/N
 
 1. Detecting placeholder records by the presence of `_hf_placeholder` field
 2. Fetching actual data from external HF datasets:
-   - [BytedTsinghua-SIA/DAPO-Math-17k](https://huggingface.co/datasets/BytedTsinghua-SIA/DAPO-Math-17k) — Math reasoning problems
+   - [ByteDance-Seed/DAPO-Math-17k](https://huggingface.co/datasets/ByteDance-Seed/DAPO-Math-17k) — Math reasoning problems
    - [Skywork/Skywork-OR1-RL-Data](https://huggingface.co/datasets/Skywork/Skywork-OR1-RL-Data) — Open reasoning data
 3. Applying template restoration (DAPO prefix/suffix, Skywork `{question}` replacement)
 
@@ -93,7 +93,7 @@ Where:
 
 | Improvement | Description |
 |-------------|-------------|
-| **On-Policy KL Approximation** | Uses importance weights to correct for off-policy samples. This gives an unbiased and guaranteed-positive KL estimator |
+| **On-Policy KL Approximation** | Uses importance weights to correct for off-policy samples, providing an unbiased and guaranteed-positive KL estimator |
 | **Importance Sampling Correction** | Corrects for discrepancies between inference (vLLM) and training (Megatron) token probabilities |
 | **Overlong Filtering** | Excludes sequences that hit max length without EOS from loss computation, reducing noise from truncated generations |
 | **Asymmetric Clipping** | Uses `ratio_clip_min=0.2` and `ratio_clip_max=0.28` for asymmetric policy update bounds |
@@ -144,8 +144,8 @@ DPO reduces hallucinated tool usage with minimal computational overhead:
 ### Reasoning Control
 
 The model supports:
-- **Reasoning on/off control** – strip reasoning from 10% of samples
-- **Token budget control** – truncate 3% of reasoning traces to different budgets
+- **Reasoning on/off control** — Strip reasoning from 10% of samples
+- **Token budget control** — Truncate 3% of reasoning traces to different budgets
 
 ### Hyperparameters
 
@@ -216,7 +216,7 @@ $ uv run nemotron nano3 rl --run YOUR-CLUSTER
 
 ### Running in NeMo-RL Repository
 
-For direct execution using NeMo-RL (without the nemotron CLI wrapper), follow the [NeMo-RL Nemotron 3 Nano Guide](https://docs.nvidia.com/nemo/rl/nightly/guides/nemotron-3-nano.html):
+For direct execution using NeMo-RL (without the nemotron CLI wrapper), follow the [NeMo-RL Nemotron 3 Nano Guide](https://docs.nvidia.com/nemo/rl/latest/guides/nemotron-3-nano.html):
 
 **1. Download and prepare the dataset:**
 
@@ -269,24 +269,23 @@ uv run nemotron nano3 data prep rl [options]
 | Option | Description |
 |--------|-------------|
 | `--run <profile>` | Execute on Slurm via [NeMo-Run](../../nemo_runspec/nemo-run.md) |
-| `sample=N` | Limit rows per dataset (for testing) |
-| `force=true` | Force re-run, ignoring cache |
+| `--sample N` | Limit rows per dataset (for testing) |
+| `--force` | Force re-run, ignoring cache |
 
 #### Output
 
 ```
 output/nano3/stage2_rl/
-├── manifest.json                       # {"train": "<path>", "val": "<path>", "test": "<path>"}
-└── runs/<run_hash>/
-    ├── <dataset>__train/
-    │   └── shard_000000.jsonl
-    ├── <dataset>__val/
-    │   └── shard_000000.jsonl
-    └── <dataset>__test/
-        └── shard_000000.jsonl
+├── train/
+│   └── data.jsonl
+├── val/
+│   └── data.jsonl
+├── test/
+│   └── data.jsonl
+└── manifest.json
 ```
 
-The output is registered as a [W&B Artifact](../artifacts.md) (`SplitJsonlDataArtifact-<config_name>`) for lineage tracking.
+The output is registered as a [W&B Artifact](../../nemo_runspec/artifacts.md) (`DataBlendsArtifact-rl`) for lineage tracking.
 
 ### Training
 
@@ -301,7 +300,7 @@ uv run nemotron nano3 rl [options] [overrides...]
 | `--run <profile>` | Attached—submits and waits, streaming logs ([NeMo-Run](../../nemo_runspec/nemo-run.md)) |
 | `--batch <profile>` | Detached—submits and exits immediately ([NeMo-Run](../../nemo_runspec/nemo-run.md)) |
 | `--dry-run` | Preview execution plan |
-| `key=value` | Override config values ([CLI Framework](../cli.md#dotlist-overrides)) |
+| `key=value` | Override config values ([CLI Framework](../../nemo_runspec/cli.md#dotlist-overrides)) |
 
 #### Override Examples
 
@@ -379,7 +378,7 @@ Common errors and solutions:
 - Monitor `token_mult_prob_error` for inference/training consistency (should stay below ~2%)
 - Watch `sampling_importance_ratio` (should hover around 1.0)
 - Check `approx_entropy` for entropy collapse during training
-- Use `sample=N` in data prep for quick iteration
+- Use `--sample N` in data prep for quick iteration
 
 ---
 
@@ -390,7 +389,7 @@ Common errors and solutions:
 flowchart TB
     prev["ModelArtifact-sft<br/>(from Stage 1)"] --> train
     rl["RL Datasets<br/>(HuggingFace)"] --> dp["data_prep.py"]
-    data2["SplitJsonlDataArtifact<br/>(JSONL)"]
+    dp --> data["DataBlendsArtifact-rl<br/>(JSONL files)"]
     data --> train["train.py<br/>(GRPO with NeMo-RL)"]
     train --> model["ModelArtifact-rl<br/>(final aligned model)"]
 
@@ -443,10 +442,10 @@ Training uses multiple parallelism strategies for efficient scaling:
 | `num_nodes` | 32 |
 | `gpus_per_node` | 8 |
 
-### Features Used
+### Key Features Used
 
 | Feature | Purpose |
-|---------|--------|
+|---------|---------|
 | GRPO algorithm | Group Relative Policy Optimization with clipped gradients |
 | Megatron backend | Distributed training with TP/PP/CP/EP parallelism |
 | Sequence Packing | Efficient batch utilization for variable-length generations |
@@ -492,16 +491,16 @@ nvcr.io/nvidia/nemo-rl:v0.4.0.nemotron_3_nano
 
 ## Next Steps
 
-After RL completes, proceed to [Stage 3: Evaluation](./evaluate.md) to benchmark the aligned model.
+After RL completes, the final aligned model (`ModelArtifact-rl`) is ready for evaluation and deployment.
 
 ## Reference
 
-- [Tech Report Section 3.2](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) – RL methodology
-- [NeMo-RL Documentation](https://docs.nvidia.com/nemo/rl/latest/) – GRPO, DPO, environments
-- [NeMo-RL Nemotron 3 Nano Guide](https://docs.nvidia.com/nemo/rl/nightly/guides/nemotron-3-nano.html) — upstream training guide
-- [NVIDIA AI Stack](../nvidia-stack.md) – NeMo-RL, Megatron-Core
-- [Artifact Lineage](../artifacts.md) – W&B artifact system
-- [Stage 0: Pretraining](./pretrain.md) – pretrain the base model
-- [Stage 1: SFT](./sft.md) – instruction tuning
-- **Recipe Source:** `src/nemotron/recipes/nano3/stage2_rl/`
+- [Tech Report Section 3.2](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) — RL methodology
+- [NeMo-RL Documentation](https://docs.nvidia.com/nemo/rl/latest/) — GRPO, DPO, environments
+- [NeMo-RL Nemotron 3 Nano Guide](https://docs.nvidia.com/nemo/rl/latest/guides/nemotron-3-nano.html) — Upstream training guide
+- [NVIDIA AI Stack](../nvidia-stack.md) — NeMo-RL, Megatron-Core documentation
+- [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system
+- [Stage 0: Pretraining](./pretrain.md) — Pretrain the base model
+- [Stage 1: SFT](./sft.md) — Instruction tuning
+- **Recipe Source**: `src/nemotron/recipes/nano3/stage2_rl/` — Implementation details
 - [Back to Overview](./README.md)

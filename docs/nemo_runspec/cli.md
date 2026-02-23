@@ -1,6 +1,6 @@
 # CLI Framework
 
-The `nemotron.kit` CLI framework is built on [Typer](https://typer.tiangolo.com/) and provides tools for building hierarchical command-line interfaces for training recipes, with native integration with NeMo-Run for remote execution.
+The CLI framework is built on [Typer](https://typer.tiangolo.com/) and the [`nemo_runspec`](../../src/nemo_runspec/README.md) toolkit. Each command file contains **visible execution logic** -- no decorators hide how jobs are submitted.
 
 <div class="termy">
 
@@ -54,12 +54,13 @@ Usage: nemotron nano3 sft [OPTIONS]
 
 The CLI framework enables:
 
-- **Nested Commands** — Build hierarchical CLIs like `uv run nemotron nano3 data prep pretrain`
-- **Config Integration** — Automatic YAML config loading with dotlist overrides
-- **[Artifact Resolution](./artifacts.md)** — Map [W&B artifacts](./wandb.md) to config fields automatically
-- **[Remote Execution](./nemo-run.md)** — Submit jobs to Slurm via NeMo-Run with `--run` / `--batch`
+- **Nested Commands** -- Build hierarchical CLIs like `uv run nemotron nano3 data prep pretrain`
+- **Config Integration** -- Automatic YAML config loading with dotlist overrides
+- **[Artifact Resolution](./artifacts.md)** -- Map [W&B artifacts](../nemotron/wandb.md) to config fields via `${art:...}` resolver
+- **[Remote Execution](./nemo-run.md)** -- Submit jobs to Slurm via NeMo-Run with `--run` / `--batch`
+- **Visible Execution** -- All job submission logic lives directly in each command file
 
-For artifacts and configuration, see [Nemotron Kit](./kit.md). For execution profiles, see [Execution through NeMo-Run](./nemo-run.md).
+For artifacts, see [Nemotron Kit](../nemotron/kit.md). For execution profiles, see [Execution through NeMo-Run](./nemo-run.md). For the full `nemo_runspec` toolkit, see the [nemo_runspec README](../../src/nemo_runspec/README.md).
 
 ## Architecture
 
@@ -72,82 +73,76 @@ flowchart LR
         Commands["pretrain/sft/rl"]
     end
 
-    subgraph config["Configuration"]
-        YAML["YAML Config"]
-        Dotlist["Dotlist Overrides"]
-        Artifacts["Artifact Resolution"]
+    subgraph runspec["nemo_runspec Toolkit"]
+        Config["Config Loading"]
+        Env["env.toml Profiles"]
+        Exec["Execution Helpers"]
     end
 
     subgraph execution["Execution Modes"]
         Local["Local (torchrun)"]
-        NemoRun["NeMo-Run"]
+        NemoRun["NeMo-Run (Slurm)"]
         Ray["Ray Jobs"]
     end
 
     Root --> Recipe --> Commands
-    Commands --> config
-    config --> execution
+    Commands --> runspec
+    runspec --> execution
 ```
 
-## The @recipe Decorator
+## Command Pattern
 
-Commands are defined using the `@recipe` decorator, which wraps Typer commands with standardized config loading and execution logic:
+Each CLI command follows the same explicit pattern. Recipe metadata comes from PEP 723 `[tool.runspec]` blocks in the script itself:
 
 ```python
-from nemotron.kit.cli.recipe import recipe
-import typer
+# src/nemotron/cli/commands/nano3/pretrain.py
 
-@recipe(
-    name="nano3/pretrain",
-    script_path="src/nemotron/recipes/nano3/stage0_pretrain/train.py",
-    config_dir="src/nemotron/recipes/nano3/stage0_pretrain/config",
-    default_config="default",
-    packager="self_contained",
-    torchrun=True,
-    ray=False,
-    artifacts={
-        "data": {
-            "default": "PretrainBlendsArtifact-default",
-            "mappings": {"path": "recipe.per_split_data_args_path"},
-        },
-    },
-)
+from nemo_runspec import parse as parse_runspec
+from nemo_runspec.config import parse_config, build_job_config, save_configs
+from nemo_runspec.execution import create_executor, execute_local, build_env_vars
+from nemo_runspec.recipe_config import RecipeConfig, parse_recipe_config
+
+# Metadata read from [tool.runspec] in the training script
+SCRIPT_PATH = "src/nemotron/recipes/nano3/stage0_pretrain/train.py"
+SPEC = parse_runspec(SCRIPT_PATH)
+
+def _execute_pretrain(cfg: RecipeConfig):
+    # 1. Parse configuration
+    train_config = parse_config(cfg.ctx, SPEC.config_dir, SPEC.config.default)
+    job_config = build_job_config(train_config, cfg.ctx, SPEC.name, ...)
+
+    # 2. Save configs
+    job_dir = generate_job_dir(SPEC.name)
+    job_path, train_path = save_configs(job_config, ..., job_dir)
+
+    # 3. Execute based on mode
+    if cfg.mode == "local":
+        execute_local(SCRIPT_PATH, train_path, cfg.passthrough, ...)
+    else:
+        # Remote execution - THIS IS WHAT YOU'D CHANGE FOR SKYPILOT
+        executor = create_executor(env=env, env_vars=env_vars, packager=packager, ...)
+        with run.Experiment(recipe_name) as exp:
+            exp.add(script_task, executor=executor)
+            exp.run(detach=not attached)
+
+# CLI entry point
 def pretrain(ctx: typer.Context) -> None:
-    """Run pretraining with Megatron-Bridge."""
-    pass  # Execution handled by decorator
+    """Run pretraining with Megatron-Bridge (stage0)."""
+    cfg = parse_recipe_config(ctx)
+    _execute_pretrain(cfg)
 ```
-
-### Decorator Parameters
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `name` | `str` | Recipe identifier (e.g., `"nano3/pretrain"`) |
-| `script_path` | `str` | Path to the training script |
-| `config_dir` | `str` | Directory containing YAML configs |
-| `default_config` | `str` | Default config name (without `.yaml`) |
-| `packager` | `str` | Code packaging strategy: `"pattern"`, `"code"`, `"self_contained"` |
-| `torchrun` | `bool` | Use `torch.distributed.run` launcher |
-| `ray` | `bool` | Submit as Ray job (for data prep, RL) |
-| `artifacts` | `dict` | Artifact-to-config mappings |
-| `run_command` | `str` | Custom command template for Ray jobs |
 
 ### Registering Commands
 
-Commands are registered on Typer apps with specific context settings:
+Commands are registered via `RecipeTyper` from `nemo_runspec`, which provides standardized help panels:
 
 ```python
-nano3_app = typer.Typer(name="nano3", help="Nano3 training recipe")
+# src/nemotron/cli/commands/nano3/_typer_group.py
+from nemo_runspec.recipe_typer import RecipeTyper
 
-nano3_app.command(
-    name="pretrain",
-    context_settings={
-        "allow_extra_args": True,        # Capture dotlist overrides
-        "ignore_unknown_options": True,  # Pass through unknown flags
-    },
-)(pretrain)
+nano3_app = RecipeTyper(name="nano3", help="Nano3 training recipes")
+nano3_app.add_recipe_command(pretrain, meta=PRETRAIN_META, rich_help_panel="Training Stages")
 ```
-
-The `allow_extra_args=True` setting is critical—it allows commands to capture Hydra-style `key=value` overrides.
 
 ## Global Options
 
@@ -164,7 +159,7 @@ All recipe commands automatically receive these global options:
 
 ### GlobalContext
 
-Global options are captured in a `GlobalContext` dataclass:
+Global options are captured in a `GlobalContext` dataclass (in `nemo_runspec.cli_context`):
 
 ```python
 @dataclass
@@ -179,12 +174,12 @@ class GlobalContext:
 ```
 
 Key properties:
-- `mode` → `"run"`, `"batch"`, or `"local"`
-- `profile` → Environment profile name (from `--run` or `--batch`)
+- `mode` -> `"run"`, `"batch"`, or `"local"`
+- `profile` -> Environment profile name (from `--run` or `--batch`)
 
 ## Configuration Pipeline
 
-The `ConfigBuilder` class orchestrates config loading:
+Config loading is handled by `nemo_runspec.config`:
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryBorderColor': '#333333', 'lineColor': '#333333', 'primaryTextColor': '#333333'}}}%%
@@ -277,7 +272,7 @@ uv run nemotron nano3 pretrain -c tiny --batch MY-CLUSTER
 
 ### Ray Jobs
 
-For recipes with `ray=True` (data prep, RL), jobs are submitted via Ray:
+For recipes with `launch = "ray"` in their `[tool.runspec]` (data prep, RL), jobs are submitted via Ray:
 
 ```bash
 # Data prep uses Ray for distributed processing
@@ -287,24 +282,18 @@ uv run nemotron nano3 data prep pretrain --run MY-CLUSTER
 uv run nemotron nano3 rl -c tiny --run MY-CLUSTER
 ```
 
-## Artifact Inputs
+## Artifact Resolution
 
-Map W&B artifacts to config fields:
+### Config Resolver
 
-```python
-@recipe(
-    ...,
-    artifacts={
-        "data": {
-            "default": "PretrainBlendsArtifact-default:latest",
-            "mappings": {"path": "recipe.per_split_data_args_path"},
-        },
-        "model": {
-            "default": "ModelArtifact-sft:latest",
-            "mappings": {"path": "model.init_from_path"},
-        },
-    },
-)
+Use `${art:...}` in YAML configs to resolve artifact paths:
+
+```yaml
+run:
+  data: PretrainBlendsArtifact-default:latest
+
+recipe:
+  per_split_data_args_path: ${art:data,path}/blend.json
 ```
 
 ### CLI Override
@@ -317,21 +306,9 @@ uv run nemotron nano3 sft --run MY-CLUSTER \
     run.model=ModelArtifact-pretrain:v3
 ```
 
-### Config Resolver
-
-Use `${art:...}` in YAML configs:
-
-```yaml
-run:
-  data: PretrainBlendsArtifact-default:latest
-
-recipe:
-  per_split_data_args_path: ${art:data,path}/blend.json
-```
-
 ## Packager Types
 
-Control how code is synced to remote:
+Control how code is synced to remote (configured in `[tool.runspec.run]`):
 
 | Packager | Description | Use Case |
 |----------|-------------|----------|
@@ -370,21 +347,24 @@ $ uv run nemotron nano3 rl -c tiny --run MY-CLUSTER
 
 ## Building a Recipe
 
-### Step 1: Create Config Directory
-
-```
-src/nemotron/recipes/myrecipe/
-├── config/
-│   ├── default.yaml
-│   └── tiny.yaml
-├── train.py
-└── data_prep.py
-```
-
-### Step 2: Define Training Script
+### Step 1: Create Recipe Script with Runspec
 
 ```python
-# train.py
+# src/nemotron/recipes/myrecipe/train.py
+
+# /// script
+# [tool.runspec]
+# name = "myrecipe/train"
+# image = "nvcr.io/nvidia/nemo:25.11"
+#
+# [tool.runspec.run]
+# launch = "torchrun"
+#
+# [tool.runspec.config]
+# dir = "./config"
+# default = "default"
+# ///
+
 import argparse
 from pathlib import Path
 from omegaconf import OmegaConf
@@ -394,65 +374,81 @@ def main():
     parser.add_argument("--config", type=Path, required=True)
     args, unknown = parser.parse_known_args()
 
-    # Load config
     cfg = OmegaConf.load(args.config)
-
-    # Apply any remaining overrides
     if unknown:
-        overrides = OmegaConf.from_dotlist(unknown)
-        cfg = OmegaConf.merge(cfg, overrides)
+        cfg = OmegaConf.merge(cfg, OmegaConf.from_dotlist(unknown))
 
-    # Run training...
     print(f"Training with {cfg.train.train_iters} iterations")
 
 if __name__ == "__main__":
     main()
 ```
 
+### Step 2: Create Config Directory
+
+```
+src/nemotron/recipes/myrecipe/
+├── config/
+│   ├── default.yaml
+│   └── tiny.yaml
+└── train.py          # Script with [tool.runspec] block
+```
+
 ### Step 3: Create CLI Command
 
 ```python
-# src/nemotron/cli/myrecipe/train.py
-from nemotron.kit.cli.recipe import recipe
+# src/nemotron/cli/commands/myrecipe/train.py
+from nemo_runspec import parse as parse_runspec
+from nemo_runspec.config import parse_config, build_job_config, save_configs, generate_job_dir
+from nemo_runspec.execution import create_executor, execute_local, build_env_vars
+from nemo_runspec.env import parse_env
+from nemo_runspec.recipe_config import RecipeConfig, parse_recipe_config
+from nemo_runspec.recipe_typer import RecipeMeta
 import typer
 
-@recipe(
-    name="myrecipe/train",
-    script_path="src/nemotron/recipes/myrecipe/train.py",
-    config_dir="src/nemotron/recipes/myrecipe/config",
-    default_config="default",
-    torchrun=True,
+SCRIPT_PATH = "src/nemotron/recipes/myrecipe/train.py"
+SPEC = parse_runspec(SCRIPT_PATH)
+
+META = RecipeMeta(
+    name=SPEC.name,
+    script_path=SCRIPT_PATH,
+    config_dir=str(SPEC.config_dir),
+    default_config=SPEC.config.default,
 )
+
+def _execute_train(cfg: RecipeConfig):
+    train_config = parse_config(cfg.ctx, SPEC.config_dir, SPEC.config.default)
+    env = parse_env(cfg.ctx)
+    job_config = build_job_config(train_config, cfg.ctx, SPEC.name, SCRIPT_PATH, cfg.argv, env_profile=env)
+
+    if cfg.dry_run:
+        return
+
+    job_dir = generate_job_dir(SPEC.name)
+    _, train_path = save_configs(job_config, ..., job_dir)
+
+    if cfg.mode == "local":
+        execute_local(SCRIPT_PATH, train_path, cfg.passthrough, torchrun=True)
+    else:
+        # Remote execution via nemo-run
+        ...
+
 def train(ctx: typer.Context) -> None:
     """Run training for my recipe."""
-    pass
+    cfg = parse_recipe_config(ctx)
+    _execute_train(cfg)
 ```
 
-### Step 4: Register in CLI
+### Step 4: Register and Run
 
 ```python
-# src/nemotron/cli/myrecipe/__init__.py
-import typer
-from .train import train
+# src/nemotron/cli/commands/myrecipe/_typer_group.py
+from nemo_runspec.recipe_typer import RecipeTyper
+from .train import META, train
 
-app = typer.Typer(name="myrecipe", help="My training recipe")
-
-app.command(
-    name="train",
-    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
-)(train)
+app = RecipeTyper(name="myrecipe", help="My training recipe")
+app.add_recipe_command(train, meta=META)
 ```
-
-### Step 5: Add to Main CLI
-
-```python
-# src/nemotron/cli/bin/nemotron.py
-from nemotron.cli.myrecipe import app as myrecipe_app
-
-main_app.add_typer(myrecipe_app, name="myrecipe")
-```
-
-### Step 6: Run
 
 ```bash
 # Test locally
@@ -464,27 +460,29 @@ uv run nemotron myrecipe train -c tiny --run MY-CLUSTER
 
 ## API Reference
 
-### Recipe Decorator
+### nemo_runspec Toolkit
 
-| Export | Description |
-|--------|-------------|
-| `@recipe` | Decorator for training commands |
-| `ConfigBuilder` | Config loading and merging |
-| `GlobalContext` | Shared CLI state |
-| `split_unknown_args()` | Parse dotlist vs passthrough args |
-
-### Execution
-
-| Export | Description |
-|--------|-------------|
-| `build_executor()` | Create NeMo-Run executor from profile |
-| `load_env_profile()` | Load profile from `env.toml` |
+| Export | Module | Description |
+|--------|--------|-------------|
+| `parse()` | `nemo_runspec` | Parse `[tool.runspec]` from a script file |
+| `parse_config()` | `nemo_runspec.config` | Load YAML config with dotlist overrides |
+| `build_job_config()` | `nemo_runspec.config` | Build full job config with provenance |
+| `save_configs()` | `nemo_runspec.config` | Save job.yaml and train.yaml |
+| `parse_env()` | `nemo_runspec.env` | Load env.toml profile |
+| `parse_recipe_config()` | `nemo_runspec.recipe_config` | Parse CLI options into RecipeConfig |
+| `RecipeTyper` | `nemo_runspec.recipe_typer` | Typer subclass with rich help panels |
+| `RecipeMeta` | `nemo_runspec.recipe_typer` | Recipe metadata for help panels |
+| `GlobalContext` | `nemo_runspec.cli_context` | Shared CLI state |
+| `create_executor()` | `nemo_runspec.execution` | Build NeMo-Run executor |
+| `execute_local()` | `nemo_runspec.execution` | Run locally via torchrun |
+| `build_env_vars()` | `nemo_runspec.execution` | Build env vars (HF, W&B tokens) |
 
 ## Further Reading
 
-- [Nemotron Kit](./kit.md) — Artifacts, configuration, lineage tracking
-- [Execution through NeMo-Run](./nemo-run.md) — Execution profiles and env.toml
-- [Data Preparation](./data-prep.md) — Data preparation module
-- [Artifact Lineage](./artifacts.md) — W&B artifact system and lineage tracking
-- [W&B Integration](./wandb.md) — Credentials and configuration
-- [Nano3 Recipe](./nano3/README.md) — Complete training recipe example
+- [Nemotron Kit](../nemotron/kit.md) -- Artifacts and lineage tracking
+- [`nemo_runspec` Package](../../src/nemo_runspec/README.md) -- Full toolkit documentation
+- [Execution through NeMo-Run](./nemo-run.md) -- Execution profiles and env.toml
+- [Data Preparation](../nemotron/data-prep.md) -- Data preparation module
+- [Artifact Lineage](./artifacts.md) -- W&B artifact system and lineage tracking
+- [W&B Integration](../nemotron/wandb.md) -- Credentials and configuration
+- [Nano3 Recipe](./nano3/README.md) -- Complete training recipe example

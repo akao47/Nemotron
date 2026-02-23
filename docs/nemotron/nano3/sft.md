@@ -28,7 +28,7 @@ flowchart LR
         mask --> pack["Packing"]
         pack --> roll["Mask Rolling"]
     end
-    roll --> npy["Parquet Output"]
+    roll --> npy[".npy Output"]
 
     style chat fill:#e3f2fd,stroke:#2196f3
     style template fill:#e3f2fd,stroke:#2196f3
@@ -92,7 +92,7 @@ The pipeline rolls the loss mask by 1 position so it correctly masks the *predic
 - **Default (null)**: No truncation—full sequences are preserved
 - **When set**: Sequences exceeding the limit are truncated from the end, with the loss mask adjusted accordingly
 
-> For implementation details, see `src/nemotron/data_prep/core/chat_sft_shard_core.py`
+> For implementation details, see `src/nemotron/data_prep/chat_sft_processor.py`
 
 ### Packed Sequences
 
@@ -174,7 +174,7 @@ Common data preparation errors and solutions:
 
 **Debugging tips:**
 
-- Use `sample=100` to test data preparation on a small subset
+- Use `--sample 100` to test data preparation on a small subset
 - Check `metadata.json` output for statistics on filtered/truncated sequences
 - Review W&B artifacts for lineage tracking and validation metrics
 
@@ -205,7 +205,7 @@ Per-token normalization is preferred for SFT because it ensures consistent learn
 <div class="termy">
 
 ```console
-// 1. Prepare data (apply chat templates, tokenize to Packed Parquet)
+// 1. Prepare data (apply chat templates, tokenize to .npy)
 $ uv run nemotron nano3 data prep sft --run YOUR-CLUSTER
 
 // 2. Run SFT
@@ -214,7 +214,7 @@ $ uv run nemotron nano3 sft --run YOUR-CLUSTER
 
 </div>
 
-> **Note**: The `--run YOUR-CLUSTER` flag submits jobs via [NeMo-Run](../../nemo_runspec/nemo-run.md). See [Execution through NeMo-Run](../../nemo_runspec/nemo-run.md) for setup.
+> **Note**: The `--run YOUR-CLUSTER` flag submits jobs via [NeMo-Run](../nemo-run.md). See [Execution through NeMo-Run](../nemo-run.md) for setup.
 
 #### Direct Script Execution (Megatron-Bridge)
 
@@ -245,8 +245,8 @@ See the [Megatron-Bridge Nemotron 3 documentation](https://docs.nvidia.com/nemo/
 | File | Purpose |
 |------|---------|
 | `config/default.yaml` | Production configuration |
-| `config/data_prep/default.yaml` | Data preparation settings |
-| `config/data_prep/data_blend_raw.json` | Dataset blend definition |
+| `config/data_prep.yaml` | Data preparation settings |
+| `config/data_blend_raw.json` | Dataset blend definition |
 
 ### Data Preparation
 
@@ -260,27 +260,21 @@ uv run nemotron nano3 data prep sft [options]
 
 | Option | Description |
 |--------|-------------|
-| `--run <profile>` | Execute on Slurm via [NeMo-Run](../../nemo_runspec/nemo-run.md) |
-| `sample=N` | Limit rows per dataset (for testing) |
-| `force=true` | Force re-run, ignoring cache |
+| `--run <profile>` | Execute on Slurm via [NeMo-Run](../nemo-run.md) |
+| `--sample N` | Limit rows per dataset (for testing) |
+| `--force` | Force re-run, ignoring cache |
 
 #### Output
 
 ```
 output/stage1_sft/
-├── blend.json                          # Per-split blend {"train": [...], "valid": [...], "test": [...]}
-├── splits/
-│   ├── train/
-│   │   ├── shard_000000.parquet
-│   │   └── ...
-│   ├── valid/
-│   │   └── shard_000000.parquet
-│   └── test/
-│       └── shard_000000.parquet
-└── runs/<run_hash>/                    # Raw shard outputs (splits/ symlinks here)
+├── training.npy
+├── validation.npy
+├── test.npy
+└── metadata.json
 ```
 
-The output is registered as a [W&B Artifact](../artifacts.md) (`SFTDataArtifact-<config_name>`) for lineage tracking.
+The output is registered as a [W&B Artifact](../../nemo_runspec/artifacts.md) (`DataBlendsArtifact-sft`) for lineage tracking.
 
 ### Training
 
@@ -292,8 +286,8 @@ uv run nemotron nano3 sft [options] [overrides...]
 
 | Option | Description |
 |--------|-------------|
-| `--run <profile>` | Attached—submits and waits, streaming logs ([NeMo-Run](../../nemo_runspec/nemo-run.md)) |
-| `--batch <profile>` | Detached—submits and exits immediately ([NeMo-Run](../../nemo_runspec/nemo-run.md)) |
+| `--run <profile>` | Attached—submits and waits, streaming logs ([NeMo-Run](../nemo-run.md)) |
+| `--batch <profile>` | Detached—submits and exits immediately ([NeMo-Run](../nemo-run.md)) |
 | `--dry-run` | Preview execution plan |
 | `key=value` | Override config values ([CLI Framework](../cli.md#dotlist-overrides)) |
 
@@ -329,7 +323,7 @@ gpus_per_node = 8
 mounts = ["/lustre:/lustre"]
 ```
 
-See [Execution through NeMo-Run](../../nemo_runspec/nemo-run.md) for complete configuration options.
+See [Execution through NeMo-Run](../nemo-run.md) for complete configuration options.
 
 ### Artifact Lineage
 
@@ -338,7 +332,7 @@ See [Execution through NeMo-Run](../../nemo_runspec/nemo-run.md) for complete co
 flowchart TB
     prev["ModelArtifact-pretrain<br/>(from Stage 0)"] --> train
     inst["Instruction Datasets<br/>(OpenAI chat format)"] --> dp["data_prep.py"]
-    data1["SFTDataArtifact<br/>(Parquet)"]
+    dp --> data["DataBlendsArtifact-sft<br/>(packed .npy files)"]
     data --> train["train.py"]
     train --> model["ModelArtifact-sft<br/>(fine-tuned checkpoint)"]
     model --> next["Stage 2: RL"]
@@ -363,10 +357,10 @@ This stage uses the following components from the [NVIDIA AI Stack](../nvidia-st
 | [Megatron-Core](../nvidia-stack.md#megatron-core) | Distributed training primitives (TP, PP, DP, EP) | [GitHub](https://github.com/NVIDIA/Megatron-LM) |
 | [Megatron-Bridge](../nvidia-stack.md#megatron-bridge) | Fine-tuning loop, checkpoint loading, loss masking | [Docs](https://docs.nvidia.com/nemo/megatron-bridge/latest/) |
 
-### Features Used
+### Key Features Used
 
 | Feature | Purpose |
-|---------|--------|
+|---------|---------|
 | `finetune()` entry point | SFT training with pre-loaded checkpoint |
 | Role-based loss masking | Only compute loss on assistant tokens |
 | Mixed precision (BF16) | Memory-efficient training |
@@ -386,9 +380,9 @@ After SFT completes, proceed to [Stage 2: RL](./rl.md) for alignment training.
 
 ## Reference
 
-- [Tech Report Section 3.1](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) – SFT methodology
-- [NVIDIA AI Stack](../nvidia-stack.md) – Megatron-Core, Megatron-Bridge
-- [Artifact Lineage](../artifacts.md) – W&B artifact system
-- [Stage 0: Pretraining](./pretrain.md) – pretrain the base model
-- **Recipe Source:** `src/nemotron/recipes/nano3/stage1_sft/`
+- [Tech Report Section 3.1](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) — SFT methodology
+- [NVIDIA AI Stack](../nvidia-stack.md) — Megatron-Core, Megatron-Bridge documentation
+- [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system
+- [Stage 0: Pretraining](./pretrain.md) — Pretrain the base model
+- **Recipe Source**: `src/nemotron/recipes/nano3/stage1_sft/` — Implementation details
 - [Back to Overview](./README.md)

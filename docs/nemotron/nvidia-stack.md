@@ -1,6 +1,6 @@
 # NVIDIA AI Stack
 
-Nemotron training recipes are built on NVIDIA's AI stack. While `nemotron.kit` handles artifact versioning and lineage tracking and `nemo_runspec` provides the CLI toolkit and execution infrastructure, all heavy-lifting for distributed training is delegated to specialized NVIDIA libraries.
+Nemotron training recipes are built on NVIDIA's production-grade AI stack. While `nemotron.kit` handles artifact versioning and lineage tracking and `nemo_runspec` provides the CLI toolkit and execution infrastructure, all heavy-lifting for distributed training is delegated to specialized NVIDIA libraries.
 
 ## NeMo Framework
 
@@ -46,7 +46,7 @@ Distribute LayerNorm and Dropout activations across the sequence dimension:
 
 #### Expert Parallelism (EP)
 
-Distribute MoE experts across GPUs, which is central to Nemotron's sparse MoE architecture:
+Distribute MoE experts across GPUs — critical for Nemotron's sparse MoE architecture:
 
 ![Expert Parallelism](../assets/expert-parallelism.png)
 
@@ -72,22 +72,22 @@ Distribute MoE experts across GPUs, which is central to Nemotron's sparse MoE ar
 
 Megatron-Bridge is a PyTorch-native library that bridges Hugging Face models with Megatron-Core. It provides production-ready training loops, checkpoint conversion, and pre-configured recipes for 20+ model architectures.
 
-### Features
+### Key Features
 
-- **Bidirectional checkpoint conversion** between Hugging Face and Megatron formats
-- **Scalable training loop** with all Megatron parallelisms
-- **Pre-configured recipes** for Llama, Qwen, DeepSeek, Nemotron, and more
-- **Mixed precision** (FP8, BF16, FP4) via Transformer Engine
-- **PEFT** with LoRA and DoRA
+- **Bidirectional Checkpoint Conversion** — Convert between Hugging Face and Megatron formats
+- **Scalable Training Loop** — Production-ready training with all Megatron parallelisms
+- **Pre-configured Recipes** — Ready-to-use configurations for Llama, Qwen, DeepSeek, Nemotron, and more
+- **Mixed Precision** — FP8, BF16, FP4 support via Transformer Engine
+- **PEFT Support** — LoRA, DoRA for parameter-efficient fine-tuning
 
 ### How Nemotron Uses It
 
 Nemotron's pretraining and SFT stages use Megatron-Bridge for:
 
-1. **Model definition** via `NemotronHModel` provider for the hybrid Mamba-Transformer architecture
-2. **Training loop** with `pretrain()` and `finetune()` entry points
-3. **Checkpoint management** with distributed save/load in Megatron format
-4. **HF export** to convert trained checkpoints back to Hugging Face format
+1. **Model Definition** — `NemotronHModel` provider for the hybrid Mamba-Transformer architecture
+2. **Training Loop** — `pretrain()` and `finetune()` entry points
+3. **Checkpoint Management** — Distributed save/load with Megatron format
+4. **HF Export** — Convert trained checkpoints back to Hugging Face format
 
 ```python
 # Example: Megatron-Bridge training entry point
@@ -121,25 +121,25 @@ Megatron-Bridge uses a central `ConfigContainer` dataclass that combines:
 
 ## NeMo-RL
 
-NeMo-RL is a post-training library for reinforcement learning on LLMs and VLMs, scaling from single-machine experiments to multi-node deployments.
+NeMo-RL is a scalable post-training library for reinforcement learning on LLMs and VLMs. It enables everything from small-scale experiments to massive multi-node deployments.
 
-### Features
+### Key Features
 
-- **GRPO** (Group Relative Policy Optimization) – main RL algorithm with clipped policy gradients
-- **DAPO** (Dual-Clip Asymmetric Policy Optimization) – extended GRPO with asymmetric clipping
-- **DPO** (Direct Preference Optimization) – RL-free alignment from preference data
-- **Reward Models** – Bradley-Terry reward model training
-- **Multi-Environment Training** – math, code, tool-use, and custom reward environments
-- **Flexible Backends** – DTensor (FSDP2) for native PyTorch, Megatron for large models
+- **GRPO** (Group Relative Policy Optimization) — Main RL algorithm with clipped policy gradients
+- **DAPO** (Dual-Clip Asymmetric Policy Optimization) — Extended GRPO with asymmetric clipping
+- **DPO** (Direct Preference Optimization) — RL-free alignment from preference data
+- **Reward Models** — Bradley-Terry reward model training
+- **Multi-Environment Training** — Math, code, tool-use, and custom reward environments
+- **Flexible Backends** — DTensor (FSDP2) for native PyTorch, Megatron for large models
 
 ### How Nemotron Uses It
 
 Nemotron's RL stage uses NeMo-RL for:
 
-1. **GRPO Training** with multi-environment RLVR across 7 reward environments
-2. **Generation** via vLLM backend for fast rollouts
-3. **Reward Computation** including math verification, code execution, GenRM scoring
-4. **Ray Orchestration** for distributed policy-environment coordination
+1. **GRPO Training** — Multi-environment RLVR with 7 reward environments
+2. **Generation** — vLLM backend for fast rollout generation
+3. **Reward Computation** — Math verification, code execution, GenRM scoring
+4. **Ray Orchestration** — Distributed policy-environment coordination
 
 ```python
 # Example: NeMo-RL GRPO training
@@ -161,11 +161,11 @@ NeMo-RL uses a Ray-based actor model for distributed training. Each "RL Actor" (
 
 *Image credit: [NeMo-RL Documentation](https://docs.nvidia.com/nemo/rl/latest/)*
 
-Core concepts:
-- **RL Actors** – high-level components (Policy Model, Generator, Reward Model)
-- **RayWorkerGroup** – manages a pool of workers for each actor
-- **Workers** – individual processes handling computation
-- **RayVirtualCluster** – allocates GPU resources to worker groups
+Key concepts:
+- **RL Actors** — High-level components (Policy Model, Generator, Reward Model)
+- **RayWorkerGroup** — Manages a pool of workers for each actor
+- **Workers** — Individual processes handling computation
+- **RayVirtualCluster** — Allocates GPU resources to worker groups
 
 ### Reward Environments
 
@@ -208,6 +208,6 @@ Nemotron recipes are tested with specific versions of the NVIDIA AI stack. Check
 
 ## Further Reading
 
-- [Nemotron Kit](./kit.md) – artifact system and lineage tracking
-- [Execution through NeMo-Run](../nemo_runspec/nemo-run.md) – execution profiles and packagers
-- [Nano3 Recipe](./nano3/README.md) – training pipeline
+- [Nemotron Kit](./kit.md) — Artifact system and lineage tracking
+- [Execution through NeMo-Run](./nemo-run.md) — Execution profiles and packagers
+- [Nano3 Recipe](./nano3/README.md) — Complete training pipeline

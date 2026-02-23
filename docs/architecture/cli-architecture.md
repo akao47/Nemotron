@@ -38,7 +38,7 @@ def _execute_pretrain(cfg: RecipeConfig, *, experiment=None):
         exp.run(detach=not attached)
 ```
 
-## Components
+## Key Components
 
 ### Runspec (PEP 723 metadata)
 
@@ -59,7 +59,7 @@ Recipe scripts are self-describing. Each script declares its identity, container
 # ///
 ```
 
-The CLI reads this via `nemo_runspec.parse()`, returning a frozen `Runspec` dataclass. See [nemo_runspec package](../nemo_runspec/package-readme) for the full schema.
+The CLI reads this via `nemo_runspec.parse()`, returning a frozen `Runspec` dataclass. See [`src/nemo_runspec/README.md`](../../src/nemo_runspec/README.md) for the full schema.
 
 ### RecipeConfig
 
@@ -121,42 +121,26 @@ src/nemotron/
 │   ├── bin/
 │   │   └── nemotron.py               # Main entry point (typer app)
 │   ├── commands/
-│   │   ├── evaluate.py               # Top-level evaluate command
 │   │   └── nano3/
 │   │       ├── _typer_group.py        # Command registration (RecipeTyper)
 │   │       ├── pretrain.py            # Pretrain execution logic
 │   │       ├── sft.py                 # SFT execution logic
 │   │       ├── rl.py                  # RL execution logic (Ray)
-│   │       ├── eval.py               # Evaluation command
-│   │       ├── pipe.py               # Pipeline: pretrain → sft composition
 │   │       ├── data/
-│   │       │   ├── prep/              # Data prep commands
-│   │       │   │   ├── pretrain.py
-│   │       │   │   ├── sft.py
-│   │       │   │   └── rl.py
-│   │       │   └── import_/           # Data import commands
+│   │       │   └── prep/              # Data prep commands
 │   │       │       ├── pretrain.py
 │   │       │       ├── sft.py
 │   │       │       └── rl.py
 │   │       └── model/                 # Model import/eval commands
-│   │           ├── eval.py
-│   │           └── import_/
-│   │               ├── pretrain.py
-│   │               ├── sft.py
-│   │               └── rl.py
-│   └── kit/                           # Kit CLI commands (squash, etc.)
 │
 ├── recipes/                           # RUNTIME LAYER
 │   └── nano3/
 │       ├── stage0_pretrain/
-│       │   ├── train.py               # -> Megatron-Bridge
-│       │   └── data_prep.py           # -> Data preparation
+│       │   └── train.py               # -> Megatron-Bridge
 │       ├── stage1_sft/
-│       │   ├── train.py               # -> Megatron-Bridge
-│       │   └── data_prep.py           # -> Data preparation
+│       │   └── train.py               # -> Megatron-Bridge
 │       └── stage2_rl/
-│           ├── train.py               # -> NeMo-RL
-│           └── data_prep.py           # -> Data preparation
+│           └── train.py               # -> NeMo-RL
 
 src/nemo_runspec/                      # SHARED TOOLKIT
 ├── _parser.py                         # PEP 723 [tool.runspec] parsing
@@ -176,7 +160,6 @@ src/nemo_runspec/                      # SHARED TOOLKIT
 ├── squash.py                          # Container squash utilities
 ├── pipeline.py                        # Pipeline orchestration
 ├── step.py                            # Step definition for pipelines
-├── evaluator.py                       # NeMo Evaluator integration
 ├── artifact_registry.py               # ArtifactRegistry (fsspec/wandb)
 └── exceptions.py                      # ArtifactNotFoundError, etc.
 ```

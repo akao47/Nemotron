@@ -2,7 +2,7 @@
 
 This stage trains the base Nemotron 3 Nano model from scratch on 25 trillion tokens using [Megatron-Bridge](../nvidia-stack.md#megatron-bridge).
 
-Nemotron 3 Nano is a **hybrid Mamba-Transformer-MoE** model with 52 layers, combining state-space models for efficiency, attention for global context, and mixture-of-experts for capacity. Notable design choices include aux-loss-free MoE balancing and a two-phase data curriculum.
+Nemotron 3 Nano is a **hybrid Mamba-Transformer-MoE** model with 52 layers, combining state-space models for efficiency, attention for global context, and mixture-of-experts for capacity. Key innovations include aux-loss-free MoE balancing and a two-phase data curriculum.
 
 > **Open-Source Data Only**: This recipe uses exclusively open-sourced training data from the [Nemotron Pre-training Datasets](https://huggingface.co/collections/nvidia/nemotron-pre-training-datasets) collection, which is a subset of the full data used to train the released model. The recipe includes datasets from Nemotron-CC-Math-v1, Nemotron-CC-v2, Nemotron-CC-v2.1, and Nemotron-Pretraining-Specialized-v1. Results will differ from the benchmarks in the [tech report](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf). Use this recipe as a reference implementation to apply the methodology with your own data.
 
@@ -42,11 +42,11 @@ flowchart LR
     style moe1 fill:#fff3e0,stroke:#ff9800
 ```
 
-**Design choices:**
+**Key design choices:**
 
-- **Mamba-2 layers** provide linear-time sequence processing, making long-context inference practical
-- **Attention layers** appear at regular intervals (every ~8 layers) for global information mixing
-- **MoE layers** use 128 routed experts plus 1 shared expert, with 6 experts activated per token. This keeps active parameters at ~3.5B while total parameters reach ~31.6B
+- **Mamba-2 layers** provide linear-time sequence processing, enabling efficient inference on long contexts
+- **Attention layers** are placed at strategic intervals (every ~8 layers) for global information mixing
+- **MoE layers** use 128 routed experts plus 1 shared expert, with 6 experts activated per token, keeping active parameters at ~3.5B while total parameters reach ~31.6B
 
 > For architecture rationale, see [Tech Report Section 2.1](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf).
 >
@@ -202,8 +202,8 @@ See the [Megatron-Bridge Nemotron 3 documentation](https://docs.nvidia.com/nemo/
 | File | Purpose |
 |------|---------|
 | `config/default.yaml` | Production configuration |
-| `config/data_prep/default.yaml` | Data preparation settings |
-| `config/data_prep/data_blend_raw.json` | Dataset blend definition |
+| `config/data_prep.yaml` | Data preparation settings |
+| `config/data_blend_raw.json` | Dataset blend definition |
 
 **Blend Configuration**
 
@@ -233,26 +233,23 @@ uv run nemotron nano3 data prep pretrain [options]
 | Option | Description |
 |--------|-------------|
 | `--run <profile>` | Execute on Slurm via [NeMo-Run](../../nemo_runspec/nemo-run.md) |
-| `sample=N` | Limit rows per dataset (for testing) |
-| `force=true` | Force re-run, ignoring cache |
+| `--sample N` | Limit rows per dataset (for testing) |
+| `--force` | Force re-run, ignoring cache |
 
 #### Output
 
 ```
 output/nano3/stage0_pretrain/
-├── blend.json                          # Per-split blend {"train": [...], "valid": [...], "test": [...]}
-├── splits/
-│   ├── train/
-│   │   ├── shard_000000.bin/.idx
-│   │   └── ...
-│   ├── valid/
-│   │   └── shard_000000.bin/.idx
-│   └── test/
-│       └── shard_000000.bin/.idx
-└── runs/<run_hash>/                    # Raw shard outputs (splits/ symlinks here)
+├── train/
+│   ├── data_00000.bin
+│   ├── data_00000.idx
+│   └── ...
+├── valid/
+├── test/
+└── blend.json
 ```
 
-The output is registered as a [W&B Artifact](../artifacts.md) (`PretrainBlendsArtifact-<config_name>`) for lineage tracking.
+The output is registered as a [W&B Artifact](../../nemo_runspec/artifacts.md) (`DataBlendsArtifact-pretrain`) for lineage tracking.
 
 ### Training
 
@@ -267,7 +264,7 @@ uv run nemotron nano3 pretrain [options] [overrides...]
 | `--run <profile>` | Attached—submits and waits, streaming logs ([NeMo-Run](../../nemo_runspec/nemo-run.md)) |
 | `--batch <profile>` | Detached—submits and exits immediately ([NeMo-Run](../../nemo_runspec/nemo-run.md)) |
 | `--dry-run` | Preview execution plan |
-| `key=value` | Override config values ([CLI Framework](../cli.md#dotlist-overrides)) |
+| `key=value` | Override config values ([CLI Framework](../../nemo_runspec/cli.md#dotlist-overrides)) |
 
 #### Override Examples
 
@@ -333,7 +330,7 @@ Checkpoints use Megatron's distributed format, which handles model parallelism a
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryBorderColor': '#333333', 'lineColor': '#333333', 'primaryTextColor': '#333333'}}}%%
 flowchart TB
     raw["Raw Text Data"] --> dp["data_prep.py"]
-    data["PretrainBlendsArtifact<br/>(bin/idx files + blend.json)"]
+    dp --> data["DataBlendsArtifact-pretrain<br/>(bin/idx files + blend.json)"]
     data --> train["train.py"]
     train --> model["ModelArtifact-pretrain<br/>(checkpoint)"]
     model --> next["Stage 1: SFT"]
@@ -392,8 +389,8 @@ After pretraining completes, proceed to [Stage 1: SFT](./sft.md) for instruction
 
 ## Reference
 
-- [Tech Report Section 2](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) – pretraining methodology
-- [NVIDIA AI Stack](../nvidia-stack.md) – Megatron-Core, Megatron-Bridge
-- [Artifact Lineage](../artifacts.md) – W&B artifact system
-- **Recipe Source:** `src/nemotron/recipes/nano3/stage0_pretrain/`
+- [Tech Report Section 2](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) — Pretraining methodology
+- [NVIDIA AI Stack](../nvidia-stack.md) — Megatron-Core, Megatron-Bridge documentation
+- [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system
+- **Recipe Source**: `src/nemotron/recipes/nano3/stage0_pretrain/` — Implementation details
 - [Back to Overview](./README.md)

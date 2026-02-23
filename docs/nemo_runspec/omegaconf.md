@@ -1,10 +1,10 @@
 # OmegaConf Configuration System
 
-Nemotron uses [OmegaConf](https://omegaconf.readthedocs.io/) for configuration management, with custom resolvers (in `nemo_runspec.config.resolvers`) for automatic artifact resolution and W&B lineage tracking. This page covers the `run` section in configs, artifact interpolations, and unified W&B logging.
+Nemotron uses [OmegaConf](https://omegaconf.readthedocs.io/) for configuration management, with custom resolvers (in `nemo_runspec.config.resolvers`) that enable automatic artifact resolution and W&B lineage tracking. This page explains the `run` section in configs, artifact interpolations, and unified W&B logging.
 
 ## The `run` Section
 
-The `run` section in recipe configs holds execution and artifact metadata. It's separate from the training algorithm configuration.
+The `run` section in recipe configs serves as a metadata container for execution and artifact configuration. It's separate from the training algorithm configuration.
 
 ```yaml
 # config.yaml
@@ -65,7 +65,7 @@ checkpoint_step: ${art:model,iteration}          # 10000
 
 # Metadata field resolution (from metadata.json)
 pack_size: ${art:data,pack_size}                 # 4096
-training_path: ${art:data,training_path}         # /path/to/training_4096.parquet
+training_path: ${art:data,training_path}         # /path/to/training_4096.npy
 ```
 
 ### Supported Fields
@@ -110,7 +110,7 @@ recipe:
 
 ```yaml
 run:
-  data: SplitJsonlDataArtifact-rl:latest
+  data: DataBlendsArtifact-rl:latest
   model: sft:latest
   env:
     container: nvcr.io/nvidia/nemo-rl:v0.4.0.nemotron_3_nano
@@ -201,7 +201,7 @@ Until native support is available, the kit uses targeted monkey patches to unify
 
 ```python
 # In train.py (pretraining/SFT)
-from nemotron.kit.wandb_kit import (
+from nemotron.kit.wandb import (
     patch_wandb_checkpoint_logging,
     patch_wandb_init_for_lineage,
 )
@@ -218,7 +218,7 @@ patch_wandb_checkpoint_logging()
 
 ```python
 # In train.py (RL)
-from nemotron.kit.wandb_kit import patch_nemo_rl_checkpoint_logging
+from nemotron.kit.wandb import patch_nemo_rl_checkpoint_logging
 
 # Patch NeMo-RL checkpoint manager
 patch_nemo_rl_checkpoint_logging()
@@ -263,7 +263,7 @@ Resolution uses:
 
 ```python
 from nemo_runspec.config.resolvers import register_resolvers_from_config
-from nemotron.kit.wandb_kit import (
+from nemotron.kit.wandb import (
     patch_wandb_checkpoint_logging,
     patch_wandb_init_for_lineage,
 )
@@ -290,7 +290,7 @@ def main():
 
 ```python
 from nemo_runspec.config.resolvers import register_resolvers_from_config
-from nemotron.kit.wandb_kit import patch_nemo_rl_checkpoint_logging
+from nemotron.kit.wandb import patch_nemo_rl_checkpoint_logging
 
 def main():
     config = load_config("grpo_config.yaml")
@@ -323,8 +323,8 @@ train_mb_tokens: ${mul:${policy.max_total_sequence_length}, ${policy.train_micro
 
 ## Further Reading
 
-- [Artifact Lineage](../nemotron/artifacts.md) – W&B artifact system and lineage tracking
-- [Creating Custom Artifacts](../nemotron/artifacts.md#creating-custom-artifacts) – defining typed artifact classes
-- [W&B Integration](../nemotron/wandb.md) – credential handling
-- [CLI Framework](../nemotron/cli.md) – recipe CLIs and `--run` execution
-- [Execution through NeMo-Run](./nemo-run.md) – `env.toml` profiles
+- [Artifact Lineage](./artifacts.md) — W&B artifact system and lineage tracking
+- [Creating Custom Artifacts](./artifacts.md#creating-custom-artifacts) — Define typed artifact classes
+- [W&B Integration](../nemotron/wandb.md) — Automatic credential handling
+- [CLI Framework](./cli.md) — Recipe CLIs and `--run` execution
+- [Execution through NeMo-Run](./nemo-run.md) — `env.toml` profiles
