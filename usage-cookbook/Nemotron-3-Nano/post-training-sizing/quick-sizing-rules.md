@@ -27,7 +27,7 @@ table for minimums.
   (Expert Parallelism) distributes the 128 routed experts across GPUs:
   - With FSDP2 (Automodel): fits on **1 node (8 GPUs)** at EP=8
   - Without FSDP2 (Megatron-Bridge): needs DP≥2 to shard optimizer states → **16 GPUs** (EP=8, DP=2)
-. Recommended recipes ship with [16 GPUs (2 nodes)](https://docs.nvidia.com/nemo/megatron-bridge/latest/models/llm/nemotron3.html) for headroom
+  - Recommended recipes ship with [16 GPUs (2 nodes)](https://docs.nvidia.com/nemo/megatron-bridge/latest/models/llm/nemotron3.html) for headroom
 
 - **LoRA** — **~2 bytes/param** static memory (frozen BF16 weights; adapter and optimizer
   overhead is negligible at low ranks), plus activations.
@@ -46,7 +46,10 @@ table for minimums.
 
 Minimum number of GPUs where the model training fits in memory.
 
-> Reference GPU: **H100 80 GiB**. Scale GPU counts proportionally for other devices and their memory capacity.
+> Reference GPU: **H100 80 GiB**. For other devices, see the
+> [heuristic](#heuristic-for-rough-estimation) and adjust for your device's memory —
+> but note that parallel topology constraints (EP, TP, DP) may require more GPUs than
+> a simple memory ratio suggests.
 
 | Framework | Training Mode | GPUs | EP | TP | PP | DP | Seq Len |
 |-----------|---------------|:----:|:--:|:--:|:--:|:--:|--------:|
@@ -74,7 +77,7 @@ Shipped tested recipe defaults with headroom.
 | [**Megatron-Bridge**](https://docs.nvidia.com/nemo/megatron-bridge/latest/models/llm/nemotron3.html#lora-fine-tuning) | LoRA | 8 | 8 | 1 | 1 | 1 | 2048 | [Config](https://github.com/NVIDIA-NeMo/Megatron-Bridge/blob/main/src/megatron/bridge/recipes/nemotronh/nemotron_3_nano.py) |
 | [**Megatron-Bridge**](https://docs.nvidia.com/nemo/megatron-bridge/latest/models/llm/nemotron3.html) | Full SFT | 16 | 8 | 1 | 1 | 2 | 2048 | [Config](https://github.com/NVIDIA-NeMo/Megatron-Bridge/blob/main/src/megatron/bridge/recipes/nemotronh/nemotron_3_nano.py) |
 | [**Automodel**](https://docs.nvidia.com/nemo/automodel/latest/guides/llm-finetuning.html) | LoRA | 8 | 8 | — | — | 8 | 2048 | [Config](https://github.com/NVIDIA-NeMo/Automodel/blob/main/examples/llm_finetune/nemotron/nemotron_nano_v3_hellaswag_peft.yaml) |
-| [**Automodel**](https://docs.nvidia.com/nemo/automodel/latest/guides/llm-finetuning.html) | Full SFT | 8 | 8 | — | — | 8 | 2048 | [Config](https://github.com/NVIDIA-NeMo/Automodel/blob/main/examples/llm_finetune/nemotron/nemotron_nano_v3_hellaswag_peft.yaml) |
+| [**Automodel**](https://docs.nvidia.com/nemo/automodel/latest/guides/llm-finetuning.html) | Full SFT | 8 | 8 | — | — | 8 | 2048 | [Config](https://github.com/NVIDIA-NeMo/Automodel/blob/main/examples/llm_finetune/nemotron/nemotron_nano_v3_hellaswag.yaml) |
 | [**NeMo RL**](https://docs.nvidia.com/nemo/rl/latest/guides/sft.html) | Full SFT | 16 (2×8) | 8 | — | — | 16 | 2048 | [Config](https://github.com/NVIDIA-NeMo/RL/blob/main/examples/configs/recipes/llm/sft-nanov3-30BA3B-2n8g-fsdp2.yaml) |
 | [**NeMo RL**](https://docs.nvidia.com/nemo/rl/latest/guides/grpo.html) | GRPO | 16 (2×8) | 8 | 4* | — | 16 | 2048 | [Full](https://github.com/NVIDIA-NeMo/RL/blob/main/examples/configs/recipes/llm/grpo-nanov3-30BA3B-2n8g-fsdp2.yaml), [LoRA](https://github.com/NVIDIA-NeMo/RL/blob/main/examples/configs/recipes/llm/grpo-nanov3-30BA3B-2n8g-megatron-lora.yaml) |
 

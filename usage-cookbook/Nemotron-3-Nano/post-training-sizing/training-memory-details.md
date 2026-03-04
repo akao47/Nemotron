@@ -1,6 +1,6 @@
 # Training Memory Estimation Details: Nemotron 3 Nano 30B-A3B
 
-> Detailed derivations, activation scaling, and framework-specific breakdowns for
+> Detailed derivations and activation scaling for
 > [NVIDIA-Nemotron-3-Nano-30B-A3B-BF16](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16).
 > For quick GPU counts see [Quick Sizing Rules](./quick-sizing-rules.md).
 
@@ -19,14 +19,32 @@
 | Vocab size | 131,072 |
 | Experts per MoE layer | 128 routed + 1 shared |
 | Experts activated per token | 6 |
-| Default finetuning seq length | 2048 |
 | Max supported context | 1,048,576 (1M); default config: 262,144 (256K) |
+
+### Parameter Breakdown
+
+| Component | Params | BF16 Memory | % of Total |
+|-----------|-------:|------------:|-----------:|
+| Routed experts (128/layer × 23 MoE layers) | 29.37B | 54.7 GiB | 93.0% |
+| Mamba-2 layers (23) | 0.89B | 1.7 GiB | 2.8% |
+| Embeddings + LM head | 0.70B | 1.3 GiB | 2.2% |
+| Shared experts (23 layers) | 0.46B | 0.9 GiB | 1.5% |
+| Attention layers (6) | 0.14B | 0.3 GiB | 0.4% |
+| Routers + norms | 0.01B | 0.02 GiB | <0.1% |
+| **Total** | **31.58B** | **58.8 GiB** | |
+
+Non-expert vs. expert split:
+
+| Category | Params | BF16 Memory |
+|----------|-------:|------------:|
+| Non-expert (replicated or sharded by framework) | 2.20B | 4.1 GiB |
+| Routed experts (split by EP) | 29.37B | 54.7 GiB |
 
 ---
 
-## Where the 16× Comes From (Full SFT)
+## Full Supervised Finetuning (SFT) memory estimation
 
-The **16 bytes/param** is the minimum **static** memory — fixed regardless of
+The **16 bytes/param** is the minimum **static** memory at BF16 precision — fixed regardless of
 sequence length or batch size:
 
 | Item | Bytes/Param | Notes |
@@ -37,15 +55,19 @@ sequence length or batch size:
 | **Static per-param total** | **16** | |
 
 On top of that, **activation memory** (dynamic) must be stored for the backward
-pass. This depends on sequence length and micro-batch size, and scales roughly
-linearly for this model — see [Activation Memory & Sequence Length](#activation-memory--sequence-length).
+pass. At short sequences (≤2K tokens) activations are a small fraction of total
+memory and static costs dominate. As sequence length grows, activations scale
+roughly linearly and become the dominant consumer beyond ~8K tokens — at that
+point they may require additional parallelism (TP or CP) on top of what the
+static costs already need. See [Activation Memory & Sequence Length](#activation-memory--sequence-length)
+for scaling details.
 
 With a distributed optimizer the 12 bytes of Adam state are sharded across DP ranks,
-giving **6 + 12/DP_size bytes/param** per GPU (plus activations).
+giving **4 + 12/DP_size bytes/param** per GPU (plus activations).
 
 ---
 
-## Why LoRA Is ~1.15× Model Size (Not 2×)
+## LoRA memory estimation
 
 For dense models, a common heuristic is "LoRA ≈ 2× model size." For this MoE model
 the multiplier is much lower because only 3.5B of 31.6B params are active per token,
@@ -55,30 +77,44 @@ keeping activations small relative to total model size.
 |------|------|-------|
 | Frozen weights (BF16) | 2 bytes/param → 58.8 GiB | Dominant cost; unchanged by LoRA |
 | LoRA adapter weights | Rank-dependent | Rank 8 → 0.4 GiB, rank 32 → 1.6 GiB |
-| Optimizer states | 12 bytes/trainable param | Only over adapter params — small |
-| Activations (seq=2048) | ~6 GiB/GPU | Same as full SFT |
-| **Total** | **~68 GiB** | ~1.15× model BF16 size |
+| Optimizer states | 12 bytes/trainable param | Only over adapter params — small at low ranks |
+| Activations | Sequence-length dependent | See [Activation Memory & Sequence Length](#activation-memory--sequence-length) |
+| **Static total** | **~62 GiB (rank 8) to ~72 GiB (rank 32)** | Frozen weights + adapter + optimizer + gradients |
 
 The base model footprint doesn't change — LoRA only saves on the optimizer side.
+Activation memory is additional and scales the same way as in full SFT.
+For per-module trainable parameter counts, see
+[LoRA Trainable Parameter Derivation](./lora-trainable-param-derivation.md).
 
 ---
 
 ## Expert Parallelism — Why It Matters Here
 
-93% of this model's 31.6B parameters live in 128 routed experts (29.4B params,
+93% of this model's 31.6B parameters live in 128 routed experts (29.37B params,
 54.7 GiB in BF16). Expert Parallelism (EP) is therefore the **first knob to tune**:
 
-- **EP distributes whole experts across GPUs** — at EP=8, each GPU holds 16 of
-  128 experts (~6.8 GiB) instead of all 128 (~54.7 GiB).
-- **TP splits individual weight matrices** across GPUs. With only 3.5B active
-  params per token, TP>1 adds inter-GPU communication overhead without much
-  benefit at short sequences. Use TP when you need to split activations for
-  longer sequences (>8K tokens) or when dense layers are too large.
-- **PP splits layers across GPUs** — rarely needed here; PP=1 in all shipped recipes.
+- **Expert Parallelism (EP)** distributes whole experts across GPUs — at EP=8,
+  each GPU holds 16 of 128 experts (~6.8 GiB) instead of all 128 (~54.7 GiB).
+- **Tensor Parallelism (TP)** splits individual weight matrices across GPUs.
+  Non-expert weights are only 2.2B (4.1 GiB), so TP>1 saves little weight
+  memory at short sequences while adding inter-GPU communication overhead.
+  Use TP when you need to split activations for longer sequences (>8K tokens).
+- **Sequence Parallelism (SP)** reduces activation memory within TP groups by
+  partitioning sequence-dimension activations across TP ranks. SP requires
+  TP>1; by itself it does not reduce weight memory.
+- **Context Parallelism (CP)** shards long sequences across GPUs and is useful
+  when TP alone is not enough at very long context. CP primarily targets
+  activation memory, not weight memory.
+- **Pipeline Parallelism (PP)** splits layers across GPUs — rarely needed here;
+  PP=1 in all shipped recipes.
+- **DTensor (FSDP2)**, used in Automodel and NeMo RL, additionally shards
+  non-expert weights and optimizer states across data-parallel ranks. When
+  applicable, this can help run smaller GPU counts than EP-only layouts.
 
-**Rule of thumb:** set EP first to fit expert weights, then add TP only for long
-sequences. Lower EP values (1, 2, 4) work if you have fewer GPUs — EP=8 is the
-recipe default because it gives the most headroom.
+**Rule of thumb:** set EP first to fit expert weights; then scale for long
+context with TP (+SP) and CP; use DTensor (FSDP2) when available to reduce
+replicated non-expert/optimizer memory. Lower EP values (1, 2, 4) can work as
+overrides if memory permits, but shipped recipes use EP=8 for headroom.
 
 ---
 
@@ -91,7 +127,7 @@ approximately **linearly** with sequence length and becomes the dominant consume
 beyond ~8K tokens. The linear approximation holds further than for dense
 transformers because:
 
-- **23 Mamba-2 layers** have O(1) memory scaling for sequence length (recurrent state, not KV cache).
+- **23 Mamba-2 layers** contribute less activation memory growth than attention layers — they use a fixed-size recurrent state rather than a KV cache, and only store chunk-boundary states during training.
 - **23 MoE layers** scale linearly (activations per expert per token).
 - **Only 6 attention layers** are quadratic, but Flash Attention reduces them to linear memory.
 
@@ -100,55 +136,43 @@ transformers because:
 | **Weight-bound** | < 8K | Frozen expert weights | EP (more GPUs = fewer experts/GPU) |
 | **Activation-bound** | > 8K | Forward-pass activations | TP, CP, MBS, gradient checkpointing |
 
-#### Activation memory vs. sequence length
+Doubling sequence length or micro-batch size roughly doubles activation memory.
+TP and CP divide activations across GPUs proportionally.
 
-For 8× H100, Megatron-Bridge, EP=8, TP=1, LoRA rank=32 — static memory ~15 GiB/GPU.
-Estimates assume selective recomputation with MBS=1.
+**Example** (8× H100, Megatron-Bridge, EP=8, LoRA rank=32, static ~15 GiB/GPU):
 
-| Seq Length | Activation/GPU | Total/GPU | Fits 80 GiB? | Max MBS |
-|-----------:|---------------:|----------:|:------------:|--------:|
-| 1,024 | ~3 GiB | ~18 GiB | Yes | 16 |
-| 2,048 | ~6 GiB | ~21 GiB | Yes | 8 |
-| 4,096 | ~12 GiB | ~27 GiB | Yes | 4 |
-| 8,192 | ~24 GiB | ~39 GiB | Yes | 2 |
-| 16,384 | ~48 GiB | ~63 GiB | Yes (tight) | 1 |
-| 32,768 | ~96 GiB | ~111 GiB | **OOM** | — |
+- **seq=2K, MBS=1, TP=1:** activations are a small fraction of 80 GiB — fits
+  comfortably with room for larger MBS.
+- **seq=16K, MBS=1, TP=1:** activations grow ~8× relative to 2K. Approaches the
+  80 GiB limit at MBS=1 — this is roughly the max sequence length on a single
+  8-GPU node without additional parallelism.
+- **seq=32K+:** exceeds 80 GiB at TP=1. Add TP=2 (16 GPUs) or TP=4 (32 GPUs)
+  to halve or quarter activations per GPU. CP can further divide across GPUs for
+  very long context (64K+).
 
-> **Max MBS** = largest power-of-2 micro-batch size fitting in 80 GiB with a
-> 2 GiB safety margin. Use gradient accumulation for the desired global batch size.
-
-**Key takeaway:** on a single 8-GPU node with EP=8, the max finetuning sequence
-length is ~**16K tokens** (MBS=1). Beyond that, add TP or CP.
-
-#### Scaling to longer sequences
-
-| Seq Length | TP | CP | Min GPUs | Nodes | Act/GPU | Total/GPU | Fits? |
-|-----------:|---:|---:|---------:|------:|--------:|----------:|:-----:|
-| 16,384 | 1 | 1 | 8 | 1 | ~48 GiB | ~63 GiB | Yes |
-| 32,768 | 2 | 1 | 16 | 2 | ~48 GiB | ~61 GiB | Yes |
-| 32,768 | 4 | 1 | 32 | 4 | ~24 GiB | ~35 GiB | Yes |
-| 65,536 | 4 | 1 | 32 | 4 | ~48 GiB | ~59 GiB | Yes |
-| 65,536 | 4 | 2 | 64 | 8 | ~24 GiB | ~35 GiB | Yes |
-
-> TP splits both activations and non-expert weights across GPUs. Expert weights
-> remain split by EP only.
+> Min GPUs = EP × TP × CP. TP splits both activations and non-expert weights
+> across GPUs. Expert weights remain split by EP only.
 
 #### FP8 KV cache for extended context
 
-FP8 quantization of the KV cache can approximately **halve activation memory**
-for attention components with minimal accuracy degradation. While attention
-layers are only 6 of 52, FP8 KV cache is most impactful for longer sequences
-and larger micro-batch sizes. Available in both Megatron-Bridge (via Transformer
-Engine) and Automodel.
+FP8 quantization of the KV cache can approximately **halve KV cache memory**
+with minimal accuracy degradation. While attention layers are only 6 of 52,
+the KV cache is the dominant attention activation cost at longer sequences
+and larger micro-batch sizes, making FP8 most impactful there. Available in
+both Megatron-Bridge (via Transformer Engine) and Automodel.
 
-### Mamba-2 Specifics
+### Mamba-2 and Activation Memory
 
-23 of 52 layers are Mamba-2 with **O(1) memory scaling** for sequence length —
-they use a fixed-size recurrent state instead of a KV cache that grows with
-sequence length. This is why the linear activation heuristic holds much further
-than for dense transformers.
+23 of 52 layers are Mamba-2. During inference, they use a fixed-size recurrent
+state instead of a KV cache — giving O(1) memory scaling with sequence length.
+During training, input activations are still O(seq_len) per layer, but Mamba-2
+avoids the additional KV cache overhead that attention layers incur, storing only
+chunk-boundary recurrent states. This is why overall activation memory grows more
+slowly than for dense transformers.
 
-#### Fused kernel constraint on LoRA targets
+---
+
+## Mamba-2 Fused Kernel Constraint on LoRA Targets
 
 The Mamba-2 implementation passes raw weight tensors directly into fused CUDA
 kernels (e.g., `mamba_split_conv1d_scan_combined`). When LoRA wraps these modules,
@@ -178,109 +202,32 @@ Framework exclusion settings:
 
 ---
 
-## Framework-Specific Details
+## Non-Expert Weight Distribution
 
-### Per-GPU Memory Estimation
+- **Megatron-Bridge (EP only):** non-expert weights (4.1 GiB) are **replicated** on
+  every GPU. EP splits only the routed experts.
+- **Automodel / NeMo RL (DTensor + EP):** non-expert weights are **sharded** across
+  DP ranks via FSDP2, in addition to experts being split by EP.
 
-Memory components during LoRA training:
-
-1. **Base model weights** (frozen, BF16) — 2 bytes/param
-2. **LoRA adapter weights** (trainable, BF16) — 2 bytes/param
-3. **Optimizer states** (Adam FP32) — 12 bytes/trainable param, sharded across DP ranks
-4. **Gradients** (BF16) — 2 bytes/trainable param
-5. **Activations** — depends on seq length, micro-batch size, recomputation strategy
-6. **Framework overhead** (CUDA context, NCCL buffers) — ~3 GiB
-
-#### Megatron-Bridge (EP-based, no FSDP)
-
-Non-expert weights are **replicated** across data-parallel ranks. Expert weights
-are split by EP. Assumptions: LoRA rank=32, seq_len=2048, MBS=1.
-
-| Config | GPUs | EP | TP | Base Wt/GPU | Total/GPU | Fits? |
-|--------|-----:|---:|---:|------------:|----------:|:-----:|
-| 1 GPU | 1 | 1 | 1 | 58.8 GiB | ~68 GiB | Tight |
-| 2 GPU | 2 | 2 | 1 | 31.5 GiB | ~40 GiB | Yes |
-| 4 GPU | 4 | 4 | 1 | 17.8 GiB | ~26 GiB | Yes |
-| **8 GPU (1 node)** | **8** | **8** | **1** | **10.9 GiB** | **~18 GiB** | **Yes** |
-| 16 GPU (2 nodes) | 16 | 8 | 2 | 8.9 GiB | ~16 GiB | Yes |
-
-> 8 GPUs is the recipe default (EP=8), not a hard constraint — EP can be overridden.
-> Full SFT requires 16 GPUs (2 nodes) minimum per official docs.
-
-#### Automodel (FSDP2)
-
-Frozen weights are **sharded** across DP ranks via FSDP2, in addition to expert
-weights being split by EP. Assumptions: LoRA rank=8, seq_len=2048, MBS=1.
-
-| Config | GPUs | EP | DP | Base Wt/GPU | Total/GPU | Fits? |
-|--------|-----:|---:|---:|------------:|----------:|:-----:|
-| **4 GPU** | **4** | **4** | **4** | **14.7 GiB** | **~21 GiB** | **Yes** |
-| 8 GPU (EP=4) | 8 | 4 | 8 | 14.2 GiB | ~20 GiB | Yes |
-| 8 GPU (EP=8) | 8 | 8 | 8 | 7.4 GiB | ~14 GiB | Yes |
-
-FSDP2 memory distribution (simplified):
-
-```
-Megatron-Bridge (EP-based, no FSDP) — 8 GPUs:
-  Each GPU: [all non-expert weights: 4.1 GiB] + [16 experts: 6.8 GiB] = 10.9 GiB
-
-Automodel (FSDP2) — 4 GPUs:
-  Each GPU: [1/4 non-expert weights: 1.0 GiB] + [32 experts: 13.7 GiB] = 14.7 GiB
-
-NeMo RL (FSDP2) — 16 GPUs:
-  Each GPU: [1/16 non-expert weights: 0.26 GiB] + [16 experts: 6.8 GiB] = 7.1 GiB
-```
-
-### LoRA Adapter Overhead
-
-| LoRA Rank | Trainable Params | BF16 Memory | % of Base | Used In |
-|----------:|----------------:|------------:|----------:|---------|
-| 8 | 219M | 0.41 GiB | 0.69% | Automodel default |
-| 32 | 878M | 1.6 GiB | 2.78% | Megatron-Bridge default |
-| 128 | ~3.5B | ~6.5 GiB | ~11.1% | NeMo RL GRPO recipe |
-| 256 | ~7.0B | ~13.1 GiB | ~22.2% | NeMo RL SFT recipe |
-
-> Higher LoRA ranks (128, 256) substantially increase optimizer state memory.
-> NeMo RL recipes use these ranks on 16 GPUs for a reason.
-
-### Parameter Breakdown
-
-| Component | Params | BF16 Memory | % of Total |
-|-----------|-------:|------------:|-----------:|
-| Routed experts (128/layer × 23 MoE layers) | 29.37B | 54.7 GiB | 93.0% |
-| Mamba-2 layers (23) | 0.89B | 1.7 GiB | 2.8% |
-| Embeddings + LM head | 0.70B | 1.3 GiB | 2.2% |
-| Shared experts (23 layers) | 0.46B | 0.9 GiB | 1.5% |
-| Attention layers (6) | 0.14B | 0.3 GiB | 0.4% |
-| Routers + norms | 0.01B | 0.02 GiB | <0.1% |
-| **Total** | **31.58B** | **58.8 GiB** | |
-
-Non-expert vs. expert split:
-
-| Category | Params | BF16 Memory |
-|----------|-------:|------------:|
-| Non-expert (shared across all GPUs) | 2.20B | 4.1 GiB |
-| Routed experts (split by EP) | 29.37B | 54.7 GiB |
+This affects the minimum GPU count for Full SFT (8 GPUs for Automodel vs 16 for
+Megatron-Bridge). The trade-off is that replication avoids the communication overhead
+of weight gathering during forward/backward passes, which can improve training
+throughput at scale.
 
 ---
 
 ## References
 
 ### Documentation
-- Nemotron 3 docs (Megatron-Bridge): [nemotron3.html](https://docs.nvidia.com/nemo/megatron-bridge/latest/models/llm/nemotron3.html)
-- HuggingFace model card: [NVIDIA-Nemotron-3-Nano-30B-A3B-BF16](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16)
-- NeMo RL SFT guide: `RL/docs/guides/sft.md`
-- NeMo RL GRPO guide: `RL/docs/guides/grpo.md`
+- [Nemotron 3 Nano (Megatron-Bridge)](https://docs.nvidia.com/nemo/megatron-bridge/latest/models/llm/nemotron3.html)
+- [HuggingFace model card](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16)
+- [Automodel fine-tuning guide](https://docs.nvidia.com/nemo/automodel/latest/guides/llm-finetuning.html)
+- [NeMo RL SFT guide](https://docs.nvidia.com/nemo/rl/latest/guides/sft.html)
+- [NeMo RL GRPO guide](https://docs.nvidia.com/nemo/rl/latest/guides/grpo.html)
 
 ### Recipes and Configs
-- Megatron-Bridge recipe: `Megatron-Bridge/src/megatron/bridge/recipes/nemotronh/nemotron_3_nano.py`
-- Megatron-Bridge SLURM example: `Megatron-Bridge/examples/models/nemotron_3/slurm_peft.sh`
-- Automodel PEFT config: `Automodel/examples/llm_finetune/nemotron/nemotron_nano_v3_hellaswag_peft.yaml`
-- NeMo RL SFT LoRA (2×8): `RL/examples/configs/recipes/llm/sft-nanov3-30BA3B-2n8g-fsdp2-lora.yaml`
-- NeMo RL SFT LoRA (2×4): `RL/examples/configs/recipes/llm/sft-nanov3-30BA3B-2n4g-fsdp2-lora.yaml`
-- NeMo RL GRPO LoRA: `RL/examples/configs/recipes/llm/grpo-nanov3-30BA3B-2n8g-fsdp2-lora.yaml`
-- NeMo RL Full SFT: `RL/examples/configs/recipes/llm/sft-nanov3-30BA3B-2n8g-fsdp2.yaml`
-
-### Performance Data
-- Megatron-Bridge performance: `Megatron-Bridge/docs/performance-summary.md`
-- Automodel performance: `Automodel/docs/performance-summary.md`
+- [Megatron-Bridge recipe](https://github.com/NVIDIA-NeMo/Megatron-Bridge/blob/main/src/megatron/bridge/recipes/nemotronh/nemotron_3_nano.py)
+- [Automodel PEFT config](https://github.com/NVIDIA-NeMo/Automodel/blob/main/examples/llm_finetune/nemotron/nemotron_nano_v3_hellaswag_peft.yaml)
+- [NeMo RL SFT config](https://github.com/NVIDIA-NeMo/RL/blob/main/examples/configs/recipes/llm/sft-nanov3-30BA3B-2n8g-fsdp2.yaml)
+- [NeMo RL GRPO config (Full)](https://github.com/NVIDIA-NeMo/RL/blob/main/examples/configs/recipes/llm/grpo-nanov3-30BA3B-2n8g-fsdp2.yaml)
+- [NeMo RL GRPO config (LoRA)](https://github.com/NVIDIA-NeMo/RL/blob/main/examples/configs/recipes/llm/grpo-nanov3-30BA3B-2n8g-megatron-lora.yaml)
