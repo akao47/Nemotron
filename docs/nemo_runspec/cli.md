@@ -1,6 +1,6 @@
 # CLI Framework
 
-The CLI framework is built on [Typer](https://typer.tiangolo.com/) and the [`nemo_runspec`](../../src/nemo_runspec/README.md) toolkit. Each command file contains **visible execution logic** -- no decorators hide how jobs are submitted.
+The CLI framework is built on [Typer](https://typer.tiangolo.com/) and [`nemo_runspec`](../../src/nemo_runspec/README.md). Each command file contains its own execution logic, so you can see exactly how jobs are submitted.
 
 <div class="termy">
 
@@ -52,13 +52,13 @@ Usage: nemotron nano3 sft [OPTIONS]
 
 ## Overview
 
-The CLI framework enables:
+The CLI framework supports:
 
-- **Nested Commands** -- Build hierarchical CLIs like `uv run nemotron nano3 data prep pretrain`
-- **Config Integration** -- Automatic YAML config loading with dotlist overrides
-- **[Artifact Resolution](./artifacts.md)** -- Map [W&B artifacts](../nemotron/wandb.md) to config fields via `${art:...}` resolver
-- **[Remote Execution](./nemo-run.md)** -- Submit jobs to Slurm via NeMo-Run with `--run` / `--batch`
-- **Visible Execution** -- All job submission logic lives directly in each command file
+- **Nested commands** like `uv run nemotron nano3 data prep pretrain`
+- **Config integration** with automatic YAML loading and dotlist overrides
+- **[Artifact resolution](./artifacts.md)** mapping [W&B artifacts](../nemotron/wandb.md) to config fields via `${art:...}`
+- **[Remote execution](./nemo-run.md)** via NeMo-Run with `--run` / `--batch`
+- **Visible execution** with all submission logic in each command file
 
 For artifacts, see [Nemotron Kit](../nemotron/kit.md). For execution profiles, see [Execution through NeMo-Run](./nemo-run.md). For the full `nemo_runspec` toolkit, see the [nemo_runspec README](../../src/nemo_runspec/README.md).
 
@@ -479,10 +479,10 @@ uv run nemotron myrecipe train -c tiny --run MY-CLUSTER
 
 ## Further Reading
 
-- [Nemotron Kit](../nemotron/kit.md) -- Artifacts and lineage tracking
-- [`nemo_runspec` Package](../../src/nemo_runspec/README.md) -- Full toolkit documentation
-- [Execution through NeMo-Run](./nemo-run.md) -- Execution profiles and env.toml
-- [Data Preparation](../nemotron/data-prep.md) -- Data preparation module
-- [Artifact Lineage](./artifacts.md) -- W&B artifact system and lineage tracking
-- [W&B Integration](../nemotron/wandb.md) -- Credentials and configuration
-- [Nano3 Recipe](../nemotron/nano3/README.md) -- Complete training recipe example
+- [Nemotron Kit](../nemotron/kit.md) – artifacts and lineage tracking
+- [`nemo_runspec` Package](../../src/nemo_runspec/README.md) – toolkit documentation
+- [Execution through NeMo-Run](./nemo-run.md) – execution profiles and env.toml
+- [Data Preparation](../nemotron/data-prep.md) – data preparation module
+- [Artifact Lineage](./artifacts.md) – W&B artifact system and lineage tracking
+- [W&B Integration](../nemotron/wandb.md) – credentials and configuration
+- [Nano3 Recipe](../nemotron/nano3/README.md) – training recipe example

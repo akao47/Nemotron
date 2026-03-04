@@ -6,7 +6,7 @@ This directory contains documentation about Nemotron's architecture and design p
 
 Nemotron is a **cookbook** - a reference implementation showing best practices for training LLMs at scale. It's not a framework you install; it's a codebase you fork and customize.
 
-## Key Documents
+## Documents
 
 - [Runspec Specification](../runspec/v1/spec.md) - The `[tool.runspec]` metadata format for recipe scripts
 - [CLI Architecture](cli-architecture.md) - How the CLI layer works and how to fork it

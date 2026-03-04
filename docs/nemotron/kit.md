@@ -1,6 +1,6 @@
 # Nemotron Kit
 
-The `nemotron.kit` module provides domain-specific building blocks for Nemotron training recipes: artifact types, lineage tracking, and W&B integration.
+The `nemotron.kit` module provides artifact types, lineage tracking, and W&B integration for Nemotron training recipes.
 
 > **Focused by Design**: Kit handles artifacts and tracking -- not CLI, configuration, or execution. Those responsibilities live in the [`nemo_runspec`](../../src/nemo_runspec/README.md) package. All heavy-lifting training is done by the [NVIDIA AI Stack](./nvidia-stack.md): [Megatron-Core](https://github.com/NVIDIA/Megatron-LM) for distributed training primitives, [Megatron-Bridge](https://github.com/NVIDIA/Megatron-Bridge) for model training, and [NeMo-RL](https://github.com/NVIDIA/NeMo-RL) for reinforcement learning.
 
@@ -85,7 +85,7 @@ model = ModelArtifact(path=Path("/output/checkpoint"), step=10000, loss=2.5)
 model.save(name="ModelArtifact-pretrain")
 ```
 
-## Key Concepts
+## Concepts
 
 ### Artifacts
 
@@ -183,11 +183,11 @@ src/nemotron/kit/
 
 ## Further Reading
 
-- [`nemo_runspec` Package](../../src/nemo_runspec/README.md) -- CLI toolkit, config loading, execution, packaging
-- [NVIDIA AI Stack](./nvidia-stack.md) -- Megatron-Core, Megatron-Bridge, NeMo-RL
-- [OmegaConf Configuration](../nemo_runspec/omegaconf.md) -- Artifact interpolations and unified W&B logging
-- [Artifact Lineage](../nemo_runspec/artifacts.md) -- Artifact versioning and W&B lineage
-- [W&B Integration](./wandb.md) -- Automatic credential handling
-- [Execution through NeMo-Run](../nemo_runspec/nemo-run.md) -- Execution profiles and packagers
-- [CLI Framework](../nemo_runspec/cli.md) -- Building recipe CLIs
-- [Data Preparation](./data-prep.md) -- Data prep module
+- [`nemo_runspec` Package](../../src/nemo_runspec/README.md) – CLI toolkit, config loading, execution, packaging
+- [NVIDIA AI Stack](./nvidia-stack.md) – Megatron-Core, Megatron-Bridge, NeMo-RL
+- [OmegaConf Configuration](../nemo_runspec/omegaconf.md) – artifact interpolations and unified W&B logging
+- [Artifact Lineage](../nemo_runspec/artifacts.md) – artifact versioning and W&B lineage
+- [W&B Integration](./wandb.md) – credential handling
+- [Execution through NeMo-Run](../nemo_runspec/nemo-run.md) – execution profiles and packagers
+- [CLI Framework](../nemo_runspec/cli.md) – building recipe CLIs
+- [Data Preparation](./data-prep.md) – data prep module

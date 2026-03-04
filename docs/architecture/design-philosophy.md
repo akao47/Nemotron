@@ -1,10 +1,10 @@
 # Design Philosophy
 
-Nemotron is a **cookbook**, not a framework. Each recipe is a complete, end-to-end example of a real training workflow — from data preparation through pretraining, fine-tuning, and reinforcement learning. Everything in this document follows from that choice.
+Nemotron is a **cookbook**, not a framework. Each recipe is a working example of a real training workflow, from data preparation through pretraining, fine-tuning, and reinforcement learning. Everything in this document follows from that choice.
 
-A framework gives you building blocks and asks you to assemble them. A cookbook shows you the finished dish: here's how we actually trained this model, start to finish. The code is fully runnable, but it's not meant to be your team's production codebase. It's a reference implementation — you read it, understand the approach, and adapt the parts you need into your own setup.
+A framework gives you building blocks and asks you to assemble them. A cookbook shows you the finished dish: here's how we actually trained this model, start to finish. The code is fully runnable, but it's not meant to be your team's production codebase. It's a reference implementation. You read it, understand the approach, and adapt the parts you need into your own setup.
 
-This is a subtle but important distinction. A team's codebase evolves around their specific infrastructure, scale, and constraints. A cookbook is optimized for something different: **teaching by showing complete working examples**. Because it's a cookbook, we expect every team to customize it — different clusters, different data pipelines, different tracking tools. Customization isn't an edge case, it's the whole point.
+This is a subtle but important distinction. A team's codebase evolves around their specific infrastructure, scale, and constraints. A cookbook is optimized for something different: **teaching by showing working examples**. Because it's a cookbook, we expect every team to customize it — different clusters, different data pipelines, different tracking tools. Customization isn't an edge case, it's the whole point.
 
 That expectation shapes everything about how we write code. We favor clarity over abstraction, self-contained examples over reusable components, and making every step visible over hiding complexity behind convenience wrappers. When the code is explicit, a human can read a recipe and understand what to change. And just as importantly, an LLM or AI agent can too — which means customization can be assisted or fully driven by AI.
 
@@ -130,7 +130,7 @@ The runtime layer is typically a **thin script** that delegates to NVIDIA AI sta
 | RL | `train.py` | NeMo-RL |
 | Data prep | `data_prep.py` | Nemotron data_prep + Ray |
 
-**Key insight**: Execution is one forkable unit. Want SkyPilot + MLflow? Fork the CLI and rewrite it. Runtime scripts stay unchanged — they're just thin wrappers around library calls.
+The execution layer is one forkable unit. Want SkyPilot + MLflow? Fork the CLI and rewrite it. Runtime scripts stay unchanged because they're just thin wrappers around library calls.
 
 This separation means:
 - Swapping nemo-run for SkyPilot only touches `cli/commands/`

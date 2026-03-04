@@ -357,10 +357,10 @@ This stage uses the following components from the [NVIDIA AI Stack](../nvidia-st
 | [Megatron-Core](../nvidia-stack.md#megatron-core) | Distributed training primitives (TP, PP, DP, EP) | [GitHub](https://github.com/NVIDIA/Megatron-LM) |
 | [Megatron-Bridge](../nvidia-stack.md#megatron-bridge) | Fine-tuning loop, checkpoint loading, loss masking | [Docs](https://docs.nvidia.com/nemo/megatron-bridge/latest/) |
 
-### Key Features Used
+### Features Used
 
 | Feature | Purpose |
-|---------|---------|
+|---------|--------|
 | `finetune()` entry point | SFT training with pre-loaded checkpoint |
 | Role-based loss masking | Only compute loss on assistant tokens |
 | Mixed precision (BF16) | Memory-efficient training |
@@ -380,9 +380,9 @@ After SFT completes, proceed to [Stage 2: RL](./rl.md) for alignment training.
 
 ## Reference
 
-- [Tech Report Section 3.1](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) — SFT methodology
-- [NVIDIA AI Stack](../nvidia-stack.md) — Megatron-Core, Megatron-Bridge documentation
-- [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system
-- [Stage 0: Pretraining](./pretrain.md) — Pretrain the base model
-- **Recipe Source**: `src/nemotron/recipes/nano3/stage1_sft/` — Implementation details
+- [Tech Report Section 3.1](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) – SFT methodology
+- [NVIDIA AI Stack](../nvidia-stack.md) – Megatron-Core, Megatron-Bridge
+- [Artifact Lineage](../../nemo_runspec/artifacts.md) – W&B artifact system
+- [Stage 0: Pretraining](./pretrain.md) – pretrain the base model
+- **Recipe Source:** `src/nemotron/recipes/nano3/stage1_sft/`
 - [Back to Overview](./README.md)

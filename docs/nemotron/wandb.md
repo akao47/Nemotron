@@ -1,6 +1,6 @@
 # Weights & Biases Integration
 
-Nemotron provides automatic W&B configuration that seamlessly passes credentials and settings to containers running via nemo-run. `nemotron.kit.wandb_kit` handles W&B initialization and `nemo_runspec.execution` handles credential injection into executors. This eliminates manual credential management across local, Docker, Slurm, and cloud executors.
+Nemotron automatically passes W&B credentials and settings to containers running via nemo-run. `nemotron.kit.wandb_kit` handles W&B initialization; `nemo_runspec.execution` handles credential injection into executors. You don't need to manage credentials manually across local, Docker, Slurm, or cloud executors.
 
 > **Note**: W&B is recommended for full lineage tracking and team collaboration. A file-based backend is also available for local development—set `[artifacts] backend = "file"` in your `env.toml`.
 
@@ -43,11 +43,11 @@ When you run jobs via nemo-run, `nemo_runspec.execution.build_env_vars()` automa
 
 This works across all executor types:
 
-- **Local** — Environment variables set directly
-- **Docker** — Passed via container env vars
-- **Slurm** — Included in job submission
-- **SkyPilot** — Set in cloud instance environment
-- **Ray** — Passed via `runtime_env.env_vars`
+- **Local** – environment variables set directly
+- **Docker** – passed via container env vars
+- **Slurm** – included in job submission
+- **SkyPilot** – set in cloud instance environment
+- **Ray** – passed via `runtime_env.env_vars`
 
 ### How It Works
 
@@ -118,7 +118,7 @@ if config.enabled:
 
 ## Artifact Lineage
 
-W&B artifacts provide full lineage tracking. See [Artifact Lineage](../nemo_runspec/artifacts.md) for details on:
+W&B artifacts provide lineage tracking. See [Artifact Lineage](../nemo_runspec/artifacts.md) for details on:
 
 - End-to-end lineage from raw data to final model
 - Semantic URIs for artifact references
@@ -213,7 +213,7 @@ For Ray data prep jobs, credentials are passed via `runtime_env.env_vars`. Ensur
 
 ## Further Reading
 
-- [OmegaConf Configuration](../nemo_runspec/omegaconf.md) — Artifact interpolations and unified logging patches
-- [Artifact Lineage](../nemo_runspec/artifacts.md) — Full lineage tracking and W&B UI
-- [Nemotron Kit](./kit.md) — Artifact system and lineage tracking
-- [Execution through NeMo-Run](../nemo_runspec/nemo-run.md) — Execution profiles and env.toml
+- [OmegaConf Configuration](../nemo_runspec/omegaconf.md) – artifact interpolations and unified logging patches
+- [Artifact Lineage](../nemo_runspec/artifacts.md) – lineage tracking and W&B UI
+- [Nemotron Kit](./kit.md) – artifact system and lineage tracking
+- [Execution through NeMo-Run](../nemo_runspec/nemo-run.md) – execution profiles and env.toml

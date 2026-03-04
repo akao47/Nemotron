@@ -1,10 +1,10 @@
 # OmegaConf Configuration System
 
-Nemotron uses [OmegaConf](https://omegaconf.readthedocs.io/) for configuration management, with custom resolvers (in `nemo_runspec.config.resolvers`) that enable automatic artifact resolution and W&B lineage tracking. This page explains the `run` section in configs, artifact interpolations, and unified W&B logging.
+Nemotron uses [OmegaConf](https://omegaconf.readthedocs.io/) for configuration management, with custom resolvers (in `nemo_runspec.config.resolvers`) for automatic artifact resolution and W&B lineage tracking. This page covers the `run` section in configs, artifact interpolations, and unified W&B logging.
 
 ## The `run` Section
 
-The `run` section in recipe configs serves as a metadata container for execution and artifact configuration. It's separate from the training algorithm configuration.
+The `run` section in recipe configs holds execution and artifact metadata. It's separate from the training algorithm configuration.
 
 ```yaml
 # config.yaml
@@ -323,8 +323,8 @@ train_mb_tokens: ${mul:${policy.max_total_sequence_length}, ${policy.train_micro
 
 ## Further Reading
 
-- [Artifact Lineage](./artifacts.md) — W&B artifact system and lineage tracking
-- [Creating Custom Artifacts](./artifacts.md#creating-custom-artifacts) — Define typed artifact classes
-- [W&B Integration](../nemotron/wandb.md) — Automatic credential handling
-- [CLI Framework](./cli.md) — Recipe CLIs and `--run` execution
-- [Execution through NeMo-Run](./nemo-run.md) — `env.toml` profiles
+- [Artifact Lineage](./artifacts.md) – W&B artifact system and lineage tracking
+- [Creating Custom Artifacts](./artifacts.md#creating-custom-artifacts) – defining typed artifact classes
+- [W&B Integration](../nemotron/wandb.md) – credential handling
+- [CLI Framework](./cli.md) – recipe CLIs and `--run` execution
+- [Execution through NeMo-Run](./nemo-run.md) – `env.toml` profiles

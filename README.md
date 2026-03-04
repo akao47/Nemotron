@@ -1,6 +1,6 @@
 # NVIDIA Nemotron Developer Repository
 
-**Open and efficient models for agentic AI** — training recipes, deployment guides, and use-case examples for the Nemotron family.
+**Open and efficient models for agentic AI.** Training recipes, deployment guides, and use-case examples for the Nemotron family.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/licenses/Apache-2.0)
@@ -24,7 +24,7 @@
 | **Open Models** | Fully transparent training data, techniques, and weights for community innovation |
 | **Compute Efficiency** | Model pruning and optimization enabling higher throughput via TensorRT-LLM |
 | **High Accuracy** | Built on frontier open models with human-aligned reasoning for agentic workflows |
-| **Flexible Deployment** | Deploy anywhere — edge, single GPU, or data center with NIM microservices |
+| **Flexible Deployment** | Deploy anywhere: edge, single GPU, or data center with NIM microservices |
 
 ---
 
@@ -58,18 +58,18 @@ Nemotron models excel at coding, math, scientific reasoning, tool calling, instr
 
 ## Training Recipes
 
-The Nemotron Training Cookbook provides complete, reproducible training pipelines that show the full journey from raw data to deployment-ready models. These implementations reflect how large language models are trained at leading AI labs—through rigorous, scientific processes with careful experimentation, validation gates, and systematic optimization.
+The Nemotron Training Cookbook provides reproducible training pipelines from raw data to deployment-ready models. These implementations reflect how large language models are actually trained: careful experimentation, validation gates, and systematic optimization.
 
-### Why Complete Training Pipelines
+### Why Complete Pipelines?
 
-Training a production model involves interconnected components where isolated examples miss critical interactions between stages. Complete pipelines show:
+Training a production model involves interconnected components. Isolated examples miss how stages interact. Complete pipelines show:
 
-- **How data quality affects downstream performance** across pretraining, SFT, and RL stages
-- **Which training techniques work together** in practice, not just theory
-- **Where validation gates prevent failures** and ensure reproducibility
-- **How to balance competing objectives** across training stages
+- **How data quality affects downstream performance** across pretraining, SFT, and RL
+- **Which training techniques actually work together**, not just in theory
+- **Where validation gates prevent failures** and maintain reproducibility
+- **How to balance competing objectives** across stages
 
-Because these are complete systems, practitioners can extract specific techniques with confidence—each component has been proven to work in a production context.
+Because these are complete systems, you can extract specific techniques with confidence. Each component has been proven to work in context.
 
 ### Available Recipes
 
@@ -416,17 +416,17 @@ Have an idea for improving Nemotron models? Visit the **[Nemotron Ideas Portal](
 
 ## Documentation
 
-- [Nemotron 3 Nano Training Guide](docs/nemotron/nano3/README.md) — Complete training recipe
-- [NeMo-Run Configuration](docs/nemo_runspec/nemo-run.md) — Execution profiles and job orchestration
-- [Data Preparation](docs/nemotron/data-prep.md) — Data preparation module documentation
-- [Contributing Guidelines](CONTRIBUTING.md) — How to contribute
-- [Changelog](CHANGELOG.md) — Version history
+- [Nemotron 3 Nano Training Guide](docs/nemotron/nano3/README.md) – training recipe
+- [NeMo-Run Configuration](docs/nemo_runspec/nemo-run.md) – execution profiles and job orchestration
+- [Data Preparation](docs/nemotron/data-prep.md) – data preparation module
+- [Contributing Guidelines](CONTRIBUTING.md) – how to contribute
+- [Changelog](CHANGELOG.md) – version history
 
 ---
 
 ## Contributing
 
-We welcome contributions—examples, recipes, or other tools. Please read the [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
+We welcome contributions: examples, recipes, or other tools. Please read the [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
 
 ---
 

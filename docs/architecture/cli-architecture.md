@@ -38,7 +38,7 @@ def _execute_pretrain(cfg: RecipeConfig, *, experiment=None):
         exp.run(detach=not attached)
 ```
 
-## Key Components
+## Components
 
 ### Runspec (PEP 723 metadata)
 

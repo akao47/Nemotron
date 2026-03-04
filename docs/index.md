@@ -1,6 +1,6 @@
 # Nemotron Training Recipes
 
-**Open and efficient models for agentic AI** — reproducible training pipelines with fully transparent data, techniques, and weights.
+**Open and efficient models for agentic AI.** Reproducible training pipelines with transparent data, techniques, and weights.
 
 <div style="text-align: center; margin: 2rem 0;">
 <iframe width="560" height="315" src="https://www.youtube.com/embed/_y9SEtn1lU8" title="Nemotron Overview" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
@@ -67,7 +67,7 @@ End-to-end applications: RAG agents, ML agents, and multi-agent systems.
 
 ## Training Pipeline
 
-The Nemotron training pipeline follows a three-stage approach with full artifact lineage tracking:
+The Nemotron training pipeline has three stages, each tracked through [artifact lineage](nemo_runspec/artifacts.md):
 
 | Stage | Name | Description |
 |-------|------|-------------|
@@ -82,22 +82,22 @@ The Nemotron training pipeline follows a three-stage approach with full artifact
 | **Open Models** | Transparent training data, techniques, and weights for community innovation |
 | **Compute Efficiency** | Model pruning enabling higher throughput via TensorRT-LLM |
 | **High Accuracy** | Built on frontier open models with human-aligned reasoning |
-| **Flexible Deployment** | Deploy anywhere — edge, single GPU, or data center with NIM |
+| **Flexible Deployment** | Deploy anywhere: edge, single GPU, or data center with NIM |
 
-## Key Features
+## Features
 
-- **Complete Pipelines** — From raw data to deployment-ready models
-- **[Artifact Lineage](nemo_runspec/artifacts.md)** — Full traceability via [W&B](nemotron/wandb.md) from data to model
-- **Production-Grade** — Built on [NVIDIA's NeMo stack](nemotron/nvidia-stack.md) (Megatron-Bridge, NeMo-RL)
-- **Reproducible** — Versioned configs, data blends, and checkpoints
+- **End-to-end pipelines** from raw data to deployment-ready models
+- **[Artifact lineage](nemo_runspec/artifacts.md)** via [W&B](nemotron/wandb.md) from data to model
+- **Built on [NVIDIA's NeMo stack](nemotron/nvidia-stack.md)** (Megatron-Bridge, NeMo-RL)
+- **Reproducible** with versioned configs, data blends, and checkpoints
 
 ## Resources
 
-- [Tech Report](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) — Nemotron 3 Nano methodology
-- [Model Weights](https://huggingface.co/collections/nvidia/nvidia-nemotron-v3) — Pre-trained checkpoints on HuggingFace
-- [Pre-training Datasets](https://huggingface.co/collections/nvidia/nemotron-pre-training-datasets) — Open pre-training data
-- [Post-training Datasets](https://huggingface.co/collections/nvidia/nemotron-post-training-v3) — SFT and RL data
-- [Artifact Lineage](nemo_runspec/artifacts.md) — W&B integration guide
+- [Tech Report](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) – Nemotron 3 Nano methodology
+- [Model Weights](https://huggingface.co/collections/nvidia/nvidia-nemotron-v3) – pre-trained checkpoints on HuggingFace
+- [Pre-training Datasets](https://huggingface.co/collections/nvidia/nemotron-pre-training-datasets) – open pre-training data
+- [Post-training Datasets](https://huggingface.co/collections/nvidia/nemotron-post-training-v3) – SFT and RL data
+- [Artifact Lineage](nemo_runspec/artifacts.md) – W&B integration guide
 
 ```{toctree}
 :caption: Usage Cookbook

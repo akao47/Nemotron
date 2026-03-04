@@ -1,18 +1,18 @@
 # Data Preparation Module
 
-The `nemotron.data_prep` module focuses on **last-mile data processing**—transforming curated datasets into training-ready formats. It bridges the gap between data curation (handled by [NeMo Curator](https://github.com/NVIDIA-NeMo/Curator)) and model training, producing outputs compatible with the NVIDIA AI training stack.
+The `nemotron.data_prep` module handles **last-mile data processing**: transforming curated datasets into training-ready formats. It sits between data curation (handled by [NeMo Curator](https://github.com/NVIDIA-NeMo/Curator)) and model training, producing outputs compatible with the NVIDIA AI training stack.
 
-> **Coming Soon**: Native integration with [NeMo Curator](https://github.com/NVIDIA-NeMo/Curator) for data curation and [NeMo Data Designer](https://github.com/NVIDIA-NeMo/DataDesigner) for synthetic data generation. These integrations will enable end-to-end data pipelines from raw sources to training-ready formats.
+> **Coming Soon**: Native integration with [NeMo Curator](https://github.com/NVIDIA-NeMo/Curator) for data curation and [NeMo Data Designer](https://github.com/NVIDIA-NeMo/DataDesigner) for synthetic data generation. These integrations will connect raw data sources directly to training-ready format production.
 
 ## Overview
 
-Built on top of [Ray](https://ray.io/), the data preparation module provides:
+Built on [Ray](https://ray.io/), the module provides:
 
-- **Last-mile processing** — Convert curated datasets to training-ready formats (tokenization, packing, chat templating)
-- **Distributed processing** — Scale from a single machine to a cluster of workers using Ray actors
-- **Cloud-native I/O** — Read from HuggingFace Hub (`hf://`), S3 (`s3://`), GCS (`gs://`), or local paths via fsspec
-- **Deterministic output** — Frozen shard plans ensure reproducible results across runs
-- **Resumable pipelines** — Skip completed shards on restart; verify output integrity with checksums
+- **Last-mile processing** – convert curated datasets to training-ready formats (tokenization, packing, chat templating)
+- **Distributed processing** – scale from a single machine to a cluster of workers using Ray actors
+- **Cloud-native I/O** – read from HuggingFace Hub (`hf://`), S3 (`s3://`), GCS (`gs://`), or local paths via fsspec
+- **Deterministic output** – frozen shard plans ensure reproducible results across runs
+- **Resumable pipelines** – skip completed shards on restart; verify output integrity with checksums
 
 ### Data Pipeline: Curator → Data Prep → Training
 
@@ -541,11 +541,11 @@ Optional dependencies:
 
 ## Further Reading
 
-- [NeMo Curator](https://github.com/NVIDIA-NeMo/Curator) — Data curation at scale (coming soon)
-- [NeMo Data Designer](https://github.com/NVIDIA-NeMo/DataDesigner) — Synthetic data generation (coming soon)
-- [NVIDIA AI Stack](./nvidia-stack.md) — Megatron-Core, Megatron-Bridge, NeMo-RL documentation
-- [Execution through NeMo-Run](../nemo_runspec/nemo-run.md) — Job orchestration and execution profiles
-- [CLI Framework](../nemo_runspec/cli.md) — CLI building and recipe commands
-- [Artifact Lineage](../nemo_runspec/artifacts.md) — W&B artifact system and lineage tracking
-- [Xenna Observability](./xenna-observability.md) — Real-time W&B logging for xenna pipelines
-- [Nano3 Recipe](./nano3/README.md) — Complete training recipe example
+- [NeMo Curator](https://github.com/NVIDIA-NeMo/Curator) – data curation at scale (coming soon)
+- [NeMo Data Designer](https://github.com/NVIDIA-NeMo/DataDesigner) – synthetic data generation (coming soon)
+- [NVIDIA AI Stack](./nvidia-stack.md) – Megatron-Core, Megatron-Bridge, NeMo-RL
+- [Execution through NeMo-Run](../nemo_runspec/nemo-run.md) – job orchestration and execution profiles
+- [CLI Framework](../nemo_runspec/cli.md) – CLI building and recipe commands
+- [Artifact Lineage](../nemo_runspec/artifacts.md) – W&B artifact system and lineage tracking
+- [Xenna Observability](./xenna-observability.md) – real-time W&B logging for xenna pipelines
+- [Nano3 Recipe](./nano3/README.md) – training recipe example

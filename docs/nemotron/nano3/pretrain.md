@@ -2,7 +2,7 @@
 
 This stage trains the base Nemotron 3 Nano model from scratch on 25 trillion tokens using [Megatron-Bridge](../nvidia-stack.md#megatron-bridge).
 
-Nemotron 3 Nano is a **hybrid Mamba-Transformer-MoE** model with 52 layers, combining state-space models for efficiency, attention for global context, and mixture-of-experts for capacity. Key innovations include aux-loss-free MoE balancing and a two-phase data curriculum.
+Nemotron 3 Nano is a **hybrid Mamba-Transformer-MoE** model with 52 layers, combining state-space models for efficiency, attention for global context, and mixture-of-experts for capacity. Notable design choices include aux-loss-free MoE balancing and a two-phase data curriculum.
 
 > **Open-Source Data Only**: This recipe uses exclusively open-sourced training data from the [Nemotron Pre-training Datasets](https://huggingface.co/collections/nvidia/nemotron-pre-training-datasets) collection, which is a subset of the full data used to train the released model. The recipe includes datasets from Nemotron-CC-Math-v1, Nemotron-CC-v2, Nemotron-CC-v2.1, and Nemotron-Pretraining-Specialized-v1. Results will differ from the benchmarks in the [tech report](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf). Use this recipe as a reference implementation to apply the methodology with your own data.
 
@@ -42,11 +42,11 @@ flowchart LR
     style moe1 fill:#fff3e0,stroke:#ff9800
 ```
 
-**Key design choices:**
+**Design choices:**
 
-- **Mamba-2 layers** provide linear-time sequence processing, enabling efficient inference on long contexts
-- **Attention layers** are placed at strategic intervals (every ~8 layers) for global information mixing
-- **MoE layers** use 128 routed experts plus 1 shared expert, with 6 experts activated per token, keeping active parameters at ~3.5B while total parameters reach ~31.6B
+- **Mamba-2 layers** provide linear-time sequence processing, making long-context inference practical
+- **Attention layers** appear at regular intervals (every ~8 layers) for global information mixing
+- **MoE layers** use 128 routed experts plus 1 shared expert, with 6 experts activated per token. This keeps active parameters at ~3.5B while total parameters reach ~31.6B
 
 > For architecture rationale, see [Tech Report Section 2.1](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf).
 >
@@ -389,8 +389,8 @@ After pretraining completes, proceed to [Stage 1: SFT](./sft.md) for instruction
 
 ## Reference
 
-- [Tech Report Section 2](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) — Pretraining methodology
-- [NVIDIA AI Stack](../nvidia-stack.md) — Megatron-Core, Megatron-Bridge documentation
-- [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system
-- **Recipe Source**: `src/nemotron/recipes/nano3/stage0_pretrain/` — Implementation details
+- [Tech Report Section 2](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) – pretraining methodology
+- [NVIDIA AI Stack](../nvidia-stack.md) – Megatron-Core, Megatron-Bridge
+- [Artifact Lineage](../../nemo_runspec/artifacts.md) – W&B artifact system
+- **Recipe Source:** `src/nemotron/recipes/nano3/stage0_pretrain/`
 - [Back to Overview](./README.md)

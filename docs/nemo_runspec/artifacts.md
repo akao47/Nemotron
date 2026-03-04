@@ -1,15 +1,15 @@
 # Artifact Lineage & W&B Integration
 
-The Nemotron training pipeline provides complete lineage tracking from raw data to final model through [Weights & Biases](../nemotron/wandb.md) artifacts. Every data transformation and model checkpoint is versioned and linked, enabling full reproducibility and traceability.
+The Nemotron training pipeline tracks lineage from raw data to final model through [Weights & Biases](../nemotron/wandb.md) artifacts. Every data transformation and model checkpoint is versioned and linked, so you can trace any model back to its training data.
 
 > **Note**: For full lineage tracking and team sharing, the artifact system uses [W&B](../nemotron/wandb.md). A file-based backend is also available for local development—set `[artifacts] backend = "file"` in your `env.toml`. See [env.toml Reference](./nemo-run.md#envtoml-reference) for details.
 
 ## Why Lineage Matters
 
-- **Reproducibility**: Trace any model back to its exact training data and configuration
-- **Debugging**: Identify which data or training stage caused a regression
-- **Compliance**: Audit trail for model provenance and data usage
-- **Collaboration**: Share artifacts across teams with version control
+- **Reproducibility** – trace any model back to its exact training data and configuration
+- **Debugging** – identify which data or training stage caused a regression
+- **Compliance** – audit trail for model provenance and data usage
+- **Collaboration** – share artifacts across teams with version control
 
 ## End-to-End Lineage
 
@@ -309,10 +309,10 @@ class ProcessedDataArtifact(Artifact):
 
 ## Further Reading
 
-- [Nemotron Kit](../nemotron/kit.md) — Artifact system internals
-- [OmegaConf Configuration](./omegaconf.md) — `${art:...}` interpolations and lineage
-- [W&B Integration](../nemotron/wandb.md) — Credentials and configuration
-- [Importing Models & Data](../nemotron/nano3/import.md) — Import commands and directory structures
-- [CLI Framework](./cli.md) — CLI building and artifact inputs
-- [Data Preparation](../nemotron/data-prep.md) — Data preparation module
-- [Nano3 Recipe](../nemotron/nano3/README.md) — Complete training pipeline
+- [Nemotron Kit](../nemotron/kit.md) – artifact system internals
+- [OmegaConf Configuration](./omegaconf.md) – `${art:...}` interpolations and lineage
+- [W&B Integration](../nemotron/wandb.md) – credentials and configuration
+- [Importing Models & Data](../nemotron/nano3/import.md) – import commands and directory structures
+- [CLI Framework](./cli.md) – CLI building and artifact inputs
+- [Data Preparation](../nemotron/data-prep.md) – data preparation module
+- [Nano3 Recipe](../nemotron/nano3/README.md) – training pipeline

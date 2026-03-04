@@ -1,17 +1,17 @@
 # Xenna Pipeline Observability
 
-Real-time observability for cosmos-xenna data preparation pipelines, including W&B metrics logging and pipeline statistics tracking.
+Real-time observability for cosmos-xenna data preparation pipelines, with W&B metrics logging and pipeline statistics tracking.
 
 > **Implementation Note**: This module uses a monkey-patching approach to intercept pipeline statistics, since cosmos-xenna does not currently expose a native stats callback API.
 
 ## Overview
 
-When running data preparation pipelines (pretrain, SFT), you can enable real-time logging of pipeline statistics to Weights & Biases. This provides visibility into:
+When running data preparation pipelines (pretrain, SFT), you can log pipeline statistics to Weights & Biases in real time. This gives you visibility into:
 
-- **Pipeline progress** — Inputs processed, outputs generated, completion percentage
-- **Cluster utilization** — CPU/GPU/memory usage across the Ray cluster
-- **Per-stage metrics** — Actor counts, queue depths, processing speeds for each pipeline stage
-- **Bottleneck detection** — Identify which stages are blocking throughput
+- **Pipeline progress** – inputs processed, outputs generated, completion percentage
+- **Cluster utilization** – CPU/GPU/memory usage across the Ray cluster
+- **Per-stage metrics** – actor counts, queue depths, processing speeds for each pipeline stage
+- **Bottleneck detection** – which stages are blocking throughput
 
 ## Configuration
 
@@ -52,11 +52,11 @@ cosmos-xenna's `PipelineMonitor` class builds a `PipelineStats` object every `lo
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Key benefits of this approach:**
-- **No cosmos-xenna changes required** — Works with current cosmos-xenna main
-- **Same update frequency** — Matches cosmos-xenna's internal logging cadence
-- **Structured data** — Gets full `PipelineStats` object, not just text output
-- **Zero pipeline impact** — Original return value is preserved unchanged
+**Benefits of this approach:**
+- **No cosmos-xenna changes required** – works with current cosmos-xenna main
+- **Same update frequency** – matches cosmos-xenna's internal logging cadence
+- **Structured data** – gets full `PipelineStats` object, not just text output
+- **Zero pipeline impact** – original return value is preserved unchanged
 
 ### Thread Safety
 
@@ -209,6 +209,6 @@ These are expected behaviors and the hook gracefully handles missing data.
 
 ## Further Reading
 
-- [Weights & Biases Integration](./wandb.md) — W&B configuration and authentication
-- [Data Preparation](./data-prep.md) — Data prep module overview
-- [Artifact Lineage](../nemo_runspec/artifacts.md) — Tracking data lineage in W&B
+- [Weights & Biases Integration](./wandb.md) – W&B configuration and authentication
+- [Data Preparation](./data-prep.md) – data prep module overview
+- [Artifact Lineage](../nemo_runspec/artifacts.md) – tracking data lineage in W&B

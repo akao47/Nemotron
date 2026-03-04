@@ -1,12 +1,12 @@
 # Nemotron 3 Nano Training Recipe
 
-A complete, reproducible training pipeline for Nemotron 3 Nano—an open, efficient Mixture-of-Experts hybrid Mamba-Transformer model optimized for agentic reasoning.
+Reproducible training pipeline for Nemotron 3 Nano, an open Mixture-of-Experts hybrid Mamba-Transformer model optimized for agentic reasoning.
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Slurm cluster** with GPU nodes (H100 recommended) — see [Execution through NeMo-Run](../../nemo_runspec/nemo-run.md)
+- **Slurm cluster** with GPU nodes (H100 recommended). See [Execution through NeMo-Run](../../nemo_runspec/nemo-run.md)
 - **[Weights & Biases](../wandb.md) account** for experiment tracking and [artifact lineage](../../nemo_runspec/artifacts.md)
 - **Container images**:
   - Training: `nvcr.io/nvidia/nemo:25.11.nemotron_3_nano`
@@ -66,13 +66,13 @@ $ uv run nemotron nano3 pipe --run YOUR-CLUSTER
 
 ## Resources
 
-- **Tech Report**: [Nemotron 3 Nano Technical Report](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf)
-- **Model Weights**:
+- **Tech Report:** [Nemotron 3 Nano Technical Report](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf)
+- **Model Weights:**
   - [NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-Base-BF16) (Base model)
   - [NVIDIA-Nemotron-3-Nano-30B-A3B-BF16](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16) (Instruct model)
   - [NVIDIA-Nemotron-3-Nano-30B-A3B-FP8](https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B-FP8) (FP8 quantized)
-- **Model Collection**: [NVIDIA Nemotron v3 Collection](https://huggingface.co/collections/nvidia/nvidia-nemotron-v3)
-- **Training Datasets**:
+- **Model Collection:** [NVIDIA Nemotron v3 Collection](https://huggingface.co/collections/nvidia/nvidia-nemotron-v3)
+- **Training Datasets:**
   - [Pre-training Datasets](https://huggingface.co/collections/nvidia/nemotron-pre-training-datasets) (Open pre-training data)
   - [Post-training Datasets](https://huggingface.co/collections/nvidia/nemotron-post-training-v3) (SFT and RL data)
 
@@ -130,7 +130,7 @@ See [Execution through NeMo-Run](../../nemo_runspec/nemo-run.md) for profile con
 
 ## Artifact Lineage
 
-The pipeline tracks full lineage via [W&B Artifacts](../../nemo_runspec/artifacts.md), enabling traceability from raw data to final model.
+The pipeline tracks lineage via [W&B Artifacts](../../nemo_runspec/artifacts.md), so you can trace any model back to the data it was trained on.
 
 ```mermaid
 %%{init: {'theme': 'base', 'themeVariables': { 'primaryBorderColor': '#333333', 'lineColor': '#333333', 'primaryTextColor': '#333333', 'clusterBkg': '#ffffff', 'clusterBorder': '#333333'}}}%%
@@ -170,12 +170,12 @@ Native integrations with NVIDIA's NeMo ecosystem:
 
 | Tool | Description | Status |
 |------|-------------|--------|
-| [NeMo Curator](https://github.com/NVIDIA-NeMo/Curator) | Scalable data curation—deduplication, quality filtering, PII removal | Planned |
+| [NeMo Curator](https://github.com/NVIDIA-NeMo/Curator) | Data curation: deduplication, quality filtering, PII removal | Planned |
 | [NeMo Data Designer](https://github.com/NVIDIA-NeMo/DataDesigner) | Synthetic data generation for instruction tuning and alignment | Planned |
 | [NeMo Export-Deploy](https://github.com/NVIDIA-NeMo/Export-Deploy) | Model export to TensorRT-LLM and deployment | Planned |
-| [NeMo Evaluator](https://github.com/NVIDIA-NeMo/Evaluator) | Comprehensive model evaluation and benchmarking | Planned |
+| [NeMo Evaluator](https://github.com/NVIDIA-NeMo/Evaluator) | Model evaluation and benchmarking | Planned |
 
-These integrations will enable end-to-end pipelines from data curation to model evaluation.
+These integrations will connect data curation directly to model evaluation.
 
 ## CLI Reference
 

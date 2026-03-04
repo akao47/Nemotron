@@ -156,7 +156,7 @@ uv run nemotron nano3 data import rl --help
 
 ## Further Reading
 
-- [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system
-- [W&B Integration](../wandb.md) — Credentials and configuration
-- [CLI Framework](../../nemo_runspec/cli.md) — Full CLI documentation
+- [Artifact Lineage](../../nemo_runspec/artifacts.md) – W&B artifact system
+- [W&B Integration](../wandb.md) – credentials and configuration
+- [CLI Framework](../../nemo_runspec/cli.md) – CLI documentation
 - [Back to Overview](./README.md)

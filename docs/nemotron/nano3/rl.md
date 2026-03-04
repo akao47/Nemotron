@@ -15,9 +15,9 @@ This stage aligns the instruction-tuned model using GRPO (Group Relative Policy 
 ### RL Pipeline Overview
 
 The RL pipeline consists of three components:
-1. **RLVR** — Multi-environment training with verifiable rewards
-2. **RLHF with GenRM** — Generative reward model-based alignment
-3. **DPO** — Preference learning to reduce tool hallucination
+1. **RLVR** – multi-environment training with verifiable rewards
+2. **RLHF with GenRM** – generative reward model-based alignment
+3. **DPO** – preference learning to reduce tool hallucination
 
 ### Data Preparation Pipeline
 
@@ -58,8 +58,8 @@ The [Nemotron-3-Nano-RL-Training-Blend](https://huggingface.co/datasets/nvidia/N
 
 1. Detecting placeholder records by the presence of `_hf_placeholder` field
 2. Fetching actual data from external HF datasets:
-   - [ByteDance-Seed/DAPO-Math-17k](https://huggingface.co/datasets/ByteDance-Seed/DAPO-Math-17k) — Math reasoning problems
-   - [Skywork/Skywork-OR1-RL-Data](https://huggingface.co/datasets/Skywork/Skywork-OR1-RL-Data) — Open reasoning data
+   - [ByteDance-Seed/DAPO-Math-17k](https://huggingface.co/datasets/ByteDance-Seed/DAPO-Math-17k) (math reasoning problems)
+   - [Skywork/Skywork-OR1-RL-Data](https://huggingface.co/datasets/Skywork/Skywork-OR1-RL-Data) (open reasoning data)
 3. Applying template restoration (DAPO prefix/suffix, Skywork `{question}` replacement)
 
 > For data preparation implementation, see **Recipe Source**: `src/nemotron/recipes/nano3/stage2_rl/data_prep.py`
@@ -93,7 +93,7 @@ Where:
 
 | Improvement | Description |
 |-------------|-------------|
-| **On-Policy KL Approximation** | Uses importance weights to correct for off-policy samples, providing an unbiased and guaranteed-positive KL estimator |
+| **On-Policy KL Approximation** | Uses importance weights to correct for off-policy samples. This gives an unbiased and guaranteed-positive KL estimator |
 | **Importance Sampling Correction** | Corrects for discrepancies between inference (vLLM) and training (Megatron) token probabilities |
 | **Overlong Filtering** | Excludes sequences that hit max length without EOS from loss computation, reducing noise from truncated generations |
 | **Asymmetric Clipping** | Uses `ratio_clip_min=0.2` and `ratio_clip_max=0.28` for asymmetric policy update bounds |
@@ -144,8 +144,8 @@ DPO reduces hallucinated tool usage with minimal computational overhead:
 ### Reasoning Control
 
 The model supports:
-- **Reasoning on/off control** — Strip reasoning from 10% of samples
-- **Token budget control** — Truncate 3% of reasoning traces to different budgets
+- **Reasoning on/off control** – strip reasoning from 10% of samples
+- **Token budget control** – truncate 3% of reasoning traces to different budgets
 
 ### Hyperparameters
 
@@ -442,10 +442,10 @@ Training uses multiple parallelism strategies for efficient scaling:
 | `num_nodes` | 32 |
 | `gpus_per_node` | 8 |
 
-### Key Features Used
+### Features Used
 
 | Feature | Purpose |
-|---------|---------|
+|---------|--------|
 | GRPO algorithm | Group Relative Policy Optimization with clipped gradients |
 | Megatron backend | Distributed training with TP/PP/CP/EP parallelism |
 | Sequence Packing | Efficient batch utilization for variable-length generations |
@@ -495,12 +495,12 @@ After RL completes, the final aligned model (`ModelArtifact-rl`) is ready for ev
 
 ## Reference
 
-- [Tech Report Section 3.2](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) — RL methodology
-- [NeMo-RL Documentation](https://docs.nvidia.com/nemo/rl/latest/) — GRPO, DPO, environments
-- [NeMo-RL Nemotron 3 Nano Guide](https://docs.nvidia.com/nemo/rl/latest/guides/nemotron-3-nano.html) — Upstream training guide
-- [NVIDIA AI Stack](../nvidia-stack.md) — NeMo-RL, Megatron-Core documentation
-- [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system
-- [Stage 0: Pretraining](./pretrain.md) — Pretrain the base model
-- [Stage 1: SFT](./sft.md) — Instruction tuning
-- **Recipe Source**: `src/nemotron/recipes/nano3/stage2_rl/` — Implementation details
+- [Tech Report Section 3.2](https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Nano-Technical-Report.pdf) – RL methodology
+- [NeMo-RL Documentation](https://docs.nvidia.com/nemo/rl/latest/) – GRPO, DPO, environments
+- [NeMo-RL Nemotron 3 Nano Guide](https://docs.nvidia.com/nemo/rl/latest/guides/nemotron-3-nano.html) – upstream training guide
+- [NVIDIA AI Stack](../nvidia-stack.md) – NeMo-RL, Megatron-Core
+- [Artifact Lineage](../../nemo_runspec/artifacts.md) – W&B artifact system
+- [Stage 0: Pretraining](./pretrain.md) – pretrain the base model
+- [Stage 1: SFT](./sft.md) – instruction tuning
+- **Recipe Source:** `src/nemotron/recipes/nano3/stage2_rl/`
 - [Back to Overview](./README.md)
