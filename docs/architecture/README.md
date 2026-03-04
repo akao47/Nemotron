@@ -40,6 +40,7 @@ Execution Layer                    Runtime Layer (recipes/)
 │                          │      │                     │
 │ nemo_runspec (toolkit)   │─────►│ Megatron-Bridge     │
 │   config, execution, env │      │                     │
+│   artifact registry      │      │                     │
 └──────────────────────────┘      └─────────────────────┘
 ```
 
@@ -49,8 +50,8 @@ The runtime layer is typically a **thin script** that delegates to NVIDIA AI sta
 
 | Package | Scope |
 |---------|-------|
-| **`nemo_runspec`** | Generic CLI toolkit: PEP 723 runspec parsing, config loading, env.toml profiles, execution helpers, packaging, pipeline orchestration |
-| **`nemotron.kit`** | Domain-specific: artifact types (pretrain data, SFT data, checkpoints), lineage tracking (W&B, file-based), W&B integration |
+| **`nemo_runspec`** | Generic CLI toolkit: PEP 723 runspec parsing, config loading, env.toml profiles, execution helpers, packaging, pipeline orchestration, artifact registry (`art://` resolution, fsspec/wandb backends) |
+| **`nemotron.kit`** | Domain-specific: artifact type definitions (pretrain data, SFT data, checkpoints), lineage trackers (W&B, file-based), W&B integration |
 | **`nemotron.cli`** | CLI commands: visible execution logic per command, typer-based command tree |
 | **`nemotron.recipes`** | Runtime scripts: training, data prep, RL (thin scripts delegating to NVIDIA AI stack) |
 

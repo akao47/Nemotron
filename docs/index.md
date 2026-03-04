@@ -123,6 +123,7 @@ use-case-examples/RAG Agent with Nemotron RAG Models/README.md
 :hidden:
 
 nemotron/nano3/README.md
+nemotron/evaluation.md
 nemo_runspec/artifacts.md
 ```
 

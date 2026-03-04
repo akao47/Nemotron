@@ -83,6 +83,7 @@ $ uv run nemotron nano3 pipe --run YOUR-CLUSTER
 | 0 | [Pretraining](./pretrain.md) | Base model on 25T tokens with curriculum learning | [pretrain.md](./pretrain.md) |
 | 1 | [SFT](./sft.md) | Multi-domain instruction tuning with 12+ data sources | [sft.md](./sft.md) |
 | 2 | [RL](./rl.md) | GRPO alignment with multi-environment rewards | [rl.md](./rl.md) |
+| 3 | [Evaluation](../evaluation.md) | Benchmark evaluation with NeMo Evaluator | [evaluation.md](../evaluation.md) |
 
 ## Model Specifications
 
@@ -266,6 +267,7 @@ wandb login
 - [Stage 0: Pretraining](./pretrain.md)
 - [Stage 1: SFT](./sft.md)
 - [Stage 2: RL](./rl.md)
+- [Stage 3: Evaluation](../evaluation.md)
 - [Importing Models & Data](./import.md)
 - [Artifact Lineage](../../nemo_runspec/artifacts.md)
 - [Execution through NeMo-Run](../../nemo_runspec/nemo-run.md)

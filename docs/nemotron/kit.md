@@ -1,18 +1,18 @@
 # Nemotron Kit
 
-The `nemotron.kit` module provides artifact types, lineage tracking, and W&B integration for Nemotron training recipes.
+The `nemotron.kit` module provides artifact type definitions, lineage trackers, and W&B integration for Nemotron training recipes.
 
-> **Focused by Design**: Kit handles artifacts and tracking -- not CLI, configuration, or execution. Those responsibilities live in the [`nemo_runspec`](../../src/nemo_runspec/README.md) package. All heavy-lifting training is done by the [NVIDIA AI Stack](./nvidia-stack.md): [Megatron-Core](https://github.com/NVIDIA/Megatron-LM) for distributed training primitives, [Megatron-Bridge](https://github.com/NVIDIA/Megatron-Bridge) for model training, and [NeMo-RL](https://github.com/NVIDIA/NeMo-RL) for reinforcement learning.
+> **Focused by Design**: Kit owns the artifact *types* (data classes like `PretrainBlendsArtifact`, `ModelArtifact`) and *tracking behavior* (W&B/file-based lineage). The underlying artifact *registry* and *resolution* (`art://` URIs, fsspec/wandb storage backends) live in [`nemo_runspec`](../../src/nemo_runspec/README.md). CLI, configuration, and execution also live in `nemo_runspec`. All heavy-lifting training is done by the [NVIDIA AI Stack](./nvidia-stack.md): [Megatron-Core](https://github.com/NVIDIA/Megatron-LM) for distributed training primitives, [Megatron-Bridge](https://github.com/NVIDIA/Megatron-Bridge) for model training, and [NeMo-RL](https://github.com/NVIDIA/NeMo-RL) for reinforcement learning.
 
 ## Overview
 
 Kit handles three core responsibilities:
 
-| Component | Purpose |
-|-----------|---------|
-| **[Artifacts](../nemo_runspec/artifacts.md)** | Path-centric data and model versioning with typed metadata |
-| **[Lineage Tracking](../nemo_runspec/artifacts.md)** | Experiment tracking and artifact provenance via [W&B](./wandb.md) or file-based backends |
-| **[W&B Integration](./wandb.md)** | Automatic W&B initialization, credential handling, and tag management |
+| Component | What kit owns | What nemo_runspec owns |
+|-----------|--------------|----------------------|
+| **[Artifacts](../nemo_runspec/artifacts.md)** | Type definitions (`PretrainBlendsArtifact`, `ModelArtifact`, etc.) | Registry, `art://` resolution, fsspec/wandb storage backends |
+| **[Lineage Tracking](../nemo_runspec/artifacts.md)** | Trackers (`WandbTracker`, `FileTracker`) | `${art:...}` OmegaConf resolvers, distributed coordination |
+| **[W&B Integration](./wandb.md)** | Init, credential handling, monkey patches, tag management | Env var injection (`build_env_vars`), `[wandb]` config loading |
 
 For CLI infrastructure, config loading, execution, and packaging, see [`nemo_runspec`](../../src/nemo_runspec/README.md).
 
@@ -38,12 +38,13 @@ flowchart LR
         Config["Config Loading"]
         Exec["Execution"]
         Pipeline["Pipeline"]
+        Registry["Artifact Registry"]
     end
 
     subgraph kit["nemotron.kit"]
         direction TB
-        Artifact["Artifacts"]
-        Tracker["Lineage Tracking"]
+        Artifact["Artifact Types"]
+        Tracker["Lineage Trackers"]
         WandB["W&B Integration"]
     end
 
@@ -59,6 +60,7 @@ flowchart LR
     DataPrep --> runspec
     Train --> kit
     Train --> runspec
+    Artifact --> Registry
     Tracker --> tracking
 
     style cli fill:#fce4ec,stroke:#c2185b
