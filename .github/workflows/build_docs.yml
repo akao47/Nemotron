@@ -15,11 +15,10 @@
 name: Build docs
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-      - "pull-request/[0-9]+"
-      - "deploy-release/*"
+      - r**
 
 jobs:
   pre-flight:
