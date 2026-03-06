@@ -116,6 +116,9 @@ use-case-examples/README.md
 use-case-examples/Simple Nemotron-3-Nano Usage Example/README.md
 use-case-examples/Data Science ML Agent/README.md
 use-case-examples/RAG Agent with Nemotron RAG Models/README.md
+use-case-examples/Intelligent Document Processing with Nemotron RAG/README.md
+use-case-examples/nemotron-voice-rag-agent-example/README.md
+use-case-examples/sql-lora-finetuning-and-deployment/README.md
 ```
 
 ```{toctree}
@@ -143,6 +146,7 @@ nemotron/nano3/import.md
 
 nemotron/kit.md
 nemotron/nvidia-stack.md
+nemo_runspec/package-readme.md
 nemo_runspec/nemo-run.md
 nemo_runspec/omegaconf.md
 nemotron/wandb.md
