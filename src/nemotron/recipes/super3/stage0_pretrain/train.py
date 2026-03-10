@@ -4,7 +4,7 @@
 # schema = "1"
 # docs = "https://raw.githubusercontent.com/NVIDIA-NeMo/Nemotron/main/docs/runspec/v1/spec.md"
 # name = "super3/pretrain"
-# image = "gitlab-master.nvidia.com/dl/joc/nemo-ci/liding_r25.11-super-v3/train:pipe.44680568"
+# image = "nvcr.io/nvidian/nemo:26.02.super.rc4"
 # setup = "NeMo and all training dependencies are pre-installed in the image."
 #
 # [tool.runspec.run]

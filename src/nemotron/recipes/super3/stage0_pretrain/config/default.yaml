@@ -1,7 +1,7 @@
 run:
   data: PretrainBlendsArtifact-default:latest
   env:
-    container: nvcr.io/nvidian/nemo:26.02.super.rc1
+    container: nvcr.io/nvidian/nemo:26.02.super.rc4
 
 recipe:
   _target_: megatron.bridge.recipes.nemotronh.nemotron_3_super.nemotron_3_super_pretrain_config

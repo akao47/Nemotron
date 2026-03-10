@@ -67,9 +67,9 @@ End-to-end applications: RAG agents, ML agents, and multi-agent systems.
 :link: nemotron/super3/README
 :link-type: doc
 
-High-capacity hybrid Mamba-Transformer-MoE with multi-token prediction and DeepEP.
+120.6B total / 12.7B active parameters, 25T tokens, up to 1M context. Hybrid Mamba-Transformer with LatentMoE and MTP.
 
-**Stages:** Pretraining → SFT
+**Stages:** Pretraining → SFT → RL → Quantization
 :::
 
 ::::
@@ -152,6 +152,9 @@ nemotron/nano3/import.md
 
 nemotron/super3/pretrain.md
 nemotron/super3/sft.md
+nemotron/super3/rl.md
+nemotron/super3/quantization.md
+nemotron/super3/evaluate.md
 ```
 
 ```{toctree}

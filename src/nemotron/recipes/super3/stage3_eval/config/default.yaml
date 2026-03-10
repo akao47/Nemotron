@@ -18,6 +18,8 @@
 # used for Nemotron's artifact resolution and env.toml profile injection,
 # then stripped before passing to the evaluator launcher.
 #
+# Uses NeMo Framework Ray-based in-framework deployment (generic type).
+#
 # Usage:
 #   nemotron super3 eval --run MY-CLUSTER
 #   nemotron super3 eval --run MY-CLUSTER run.model=sft:v2
@@ -25,12 +27,11 @@
 #   nemotron super3 eval --dry-run
 
 # =============================================================================
-# Defaults - Use local executor and vLLM deployment
-# For slurm, override with: execution.type=slurm
+# Defaults - Use local executor and generic (NeMo Ray) deployment
 # =============================================================================
 defaults:
   - execution: local
-  - deployment: vllm
+  - deployment: generic
   - _self_
 
 # =============================================================================
@@ -73,27 +74,71 @@ execution:
   partition: ${run.env.partition}
   output_dir: ${run.env.remote_job_dir}/evaluations
   walltime: ${run.env.time}
-  # Auto-export results to W&B after evaluation completes
+  num_nodes: 1
+
+  # Proxy for health check routing
+  proxy:
+    config:
+      health_check_path: /v1/health
+
+  # Auto-export results after evaluation completes
   auto_export:
-    enabled: true
     destinations:
       - wandb
 
+  # Environment variables for deployment and evaluation containers
+  env_vars:
+    deployment:
+      HF_HOME: /cache/huggingface
+      HF_TOKEN: HF_TOKEN
+      NIM_CACHE_PATH: /cache/nim
+      VLLM_CACHE_ROOT: /cache/vllm
+    evaluation:
+      HF_HOME: /cache/huggingface
+      HF_TOKEN: HF_TOKEN
+
+  # Mount configuration
+  mounts:
+    deployment:
+      /lustre: /lustre
+    evaluation:
+      /lustre: /lustre
+    mount_home: false
+
 # Deployment configuration
-# Specifies how to serve the model for evaluation
+# Uses NeMo Framework Ray-based in-framework deployment
 deployment:
-  type: vllm
+  type: generic
   image: ${run.env.container}
   checkpoint_path: ${art:model,path}
-  # TODO(super3): Set parallelism for Super3 model size
-  tensor_parallel_size: 4
-  data_parallel_size: 1
-  extra_args: "--max-model-len 32768"
+  multiple_instances: false
+  port: 1235
+  served_model_name: nemo-model
+  health_check_path: /v1/health
+
+  # NeMo Framework Ray deployment command
+  # TP=1, EP=8 for the Super3 120B MoE model
+  command: >-
+    bash -c 'export TRITON_CACHE_DIR=/tmp/triton_cache_$$SLURM_NODEID;
+    python /opt/Export-Deploy/scripts/deploy/nlp/deploy_ray_inframework.py
+    --megatron_checkpoint /checkpoint/
+    --num_gpus 8
+    --tensor_model_parallel_size 1
+    --expert_model_parallel_size 8
+    --port 1235
+    --num_replicas 1'
+
+  endpoints:
+    chat: /v1/chat/completions/
+    completions: /v1/completions/
+    health: /v1/health
+
+  env_vars:
+    HF_TOKEN: HF_TOKEN
 
 # Evaluation configuration
 # Defines tasks and evaluation parameters
 evaluation:
-  # Environment variables for evaluation tasks
   env_vars:
     HF_TOKEN: HF_TOKEN
 
@@ -101,16 +146,37 @@ evaluation:
   nemo_evaluator_config:
     config:
       params:
-        request_timeout: 3600
-        parallelism: 8
+        max_retries: 5
+        parallelism: 4
+        request_timeout: 6000
+        extra:
+          tokenizer: ${deployment.checkpoint_path}/tokenizer
+          tokenizer_backend: huggingface
         # Uncomment for quick testing:
         # limit_samples: 10
+    target:
+      api_endpoint:
+        adapter_config:
+          output_dir: /results
+          use_progress_tracking: false
+          use_caching: true
+          caching_dir: /results/cache
+          use_response_logging: true
+          max_logged_responses: 10
+          use_request_logging: true
+          max_logged_requests: 10
 
   # Tasks to run (can be filtered with -t flag)
   tasks:
     - name: adlr_mmlu
+      nemo_evaluator_config:
+        config:
+          params:
+            top_p: 0.0
+    - name: adlr_arc_challenge_llama_25_shot
     - name: hellaswag
-    - name: arc_challenge
+    - name: openbookqa
+    - name: adlr_winogrande_5_shot
 
 # Export configuration
 # W&B export for results logging - populated from env.toml [wandb] section
@@ -118,3 +184,9 @@ export:
   wandb:
     entity: ${run.wandb.entity}
     project: ${run.wandb.project}
+  # Uncomment to also export to MLflow:
+  # mlflow:
+  #   tracking_uri: https://mlflow-nemo-evaluator.nvidia.com/
+  #   experiment_name: nemotron-3-super-nemofw-ray
+  #   log_logs: true
+  #   only_required: false

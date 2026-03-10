@@ -8,6 +8,30 @@ This stage fine-tunes the pretrained Nemotron 3 Super model for instruction foll
 
 > **Training Framework**: SFT is implemented using [Megatron-Bridge](https://docs.nvidia.com/nemo/megatron-bridge/latest/)'s `finetune()` entry point, which loads a pretrained checkpoint and handles the training loop with role-based loss masking. See [Training Entry Points](https://docs.nvidia.com/nemo/megatron-bridge/latest/training/entry-points.html) for implementation details.
 
+### Two-Stage SFT Loss
+
+Nemotron 3 Super uses a novel **two-stage SFT loss** procedure. The model is supervised only on output (assistant) tokens, with prompt tokens masked.
+
+**Stage 1: Token-level (global) average.** The loss averages over all output tokens in the packed global batch:
+
+$$
+\mathcal{L}_{\text{tok}} = \frac{\sum_{c \in \mathcal{B}} \sum_{t \in \mathcal{O}_c} \ell_t}{\sum_{c \in \mathcal{B}} |\mathcal{O}_c|}
+$$
+
+This corresponds to summing output-token log probabilities across all conversations and normalizing by the total number of output tokens.
+
+**Stage 2: Sample-level average.** The loss then switches to a per-conversation normalized loss averaged equally across conversations:
+
+$$
+\mathcal{L}_{\text{samp}} = \frac{1}{|\mathcal{B}|} \sum_{c \in \mathcal{B}} \left( \frac{1}{|\mathcal{O}_c|} \sum_{t \in \mathcal{O}_c} \ell_t \right)
+$$
+
+This stage reduces the dominance of long outputs by normalizing each conversation by its own output-token count before averaging across the batch.
+
+### MTP During SFT
+
+The shared-weight MTP head from pretraining is continued during SFT to preserve both the accuracy benefits of multi-step prediction and the inference-time gains from speculative decoding. Two MTP layers with shared parameters are trained using a scaled auxiliary loss (MTP loss scaling factor 0.3) computed with per-token loss.
+
 ### Data Preparation Pipeline
 
 Before training, chat conversations are transformed into training-ready sequences through several stages:
@@ -58,8 +82,6 @@ Loss masking determines which tokens contribute to the training loss. In SFT, we
 | `user` | 0 | Ignored (prompts) |
 | `assistant` | 1 | Learned (responses) |
 
-Per-token loss normalization (`calculate_per_token_loss: true`) ensures consistent learning signal regardless of conversation length. This is set by the recipe's model provider.
-
 ### Packed Sequences
 
 Individual chat conversations vary in length. Packing concatenates multiple conversations into a single fixed-length sequence (default 4096 tokens), maximizing GPU utilization.
@@ -74,20 +96,69 @@ The packed sequence format stores everything Megatron-Bridge needs for training:
 
 Megatron-Bridge uses `seq_start_id` boundaries for variable-length attention (preventing cross-conversation attention leak) and FlashAttention optimization.
 
+### SFT Data Domains
+
+The SFT dataset covers 15+ domains across **7M total samples**:
+
+#### Reused from Nano3
+
+| Domain | Description |
+|--------|-------------|
+| **Chat** | General conversational data |
+| **InfinityByte** | Cross-domain synthesis |
+| **Formal Proofs** | Mathematical proof generation |
+
+#### Refreshed with New Teachers (DeepSeek v3.2, Kimi K2)
+
+| Domain | Description |
+|--------|-------------|
+| **Competition Math** | Competitive mathematics problems |
+| **Competition Code** | Competitive programming problems |
+| **Conversational Tool Use** | Multi-turn tool-using interactions (scaled to 279K conversations across 838 domains) |
+| **Multilingual** | Translations to 6 languages (DE, ES, FR, IT, JA, ZH) with format compliance post-editing |
+| **Science** | Scientific reasoning |
+
+#### New Domains
+
+| Domain | Description | Scale |
+|--------|-------------|-------|
+| **Software Engineering** | Coding tasks from GitHub issues (SWE-Gym, R2E-Gym, SWE-rebench) distilled via OpenHands with Qwen3-Coder-480B | — |
+| **Agentic Programming** | Agentic CLI tasks: solution synthesis, SWE tasks, web development across Codex/OpenCode/Qwen Code CLI harnesses | ~28K tasks |
+| **Long Context** | Multi-document QA at 128K–512K context with multi-hop reasoning (4–7 retrieval steps) + 7 synthetic sequential reasoning tasks | — |
+| **Financial Reasoning** | Template-based SDG from SecQue benchmark across S&P 500 companies and fiscal years 2019–2024 | 366K QA pairs |
+| **CUDA** | Kernel generation, repair, and optimization from DeepSeek-R1/GPT-OSS-120B with CUDA evaluation validation | 100K samples |
+| **Safety** | Diverse prompts (content safety, jailbreak, over-safety, bias, prompt injection, copyright) with deliberative alignment reasoning traces | — |
+| **Search** | Multi-hop search agent trajectories grounded in Wikidata knowledge graph walks (4–8 hops, ~12 tool calls per trajectory) | ~7K records |
+| **Terminal Use** | Terminal skill taxonomy with synthetic + adapted tasks, using DeepSeek-V3.2 in Dockerized agentic execution loop | 84K samples |
+| **SQL** | Text-to-SQL across MySQL/PostgreSQL/SQLite, 60 industries, ~700 topics, 90 SQL concept buckets | 96.5K records |
+
+### Reasoning Control
+
+Nemotron 3 Super supports **three reasoning modes**:
+
+| Mode | Description |
+|------|-------------|
+| **Reasoning-off** | No reasoning traces (3% of samples have reasoning stripped) |
+| **Regular reasoning** | Standard chain-of-thought reasoning |
+| **Low-effort reasoning** | New: shorter reasoning traces generated by GPT-OSS-120B low-effort mode (2% of SFT data) |
+
+Both regular and low-effort modes support **inference-time budget control**. After the main SFT stage, a short semi-on-policy SFT stage (350 steps) fine-tunes budget control by collecting rollouts and truncating 12% of reasoning traces to random reasoning budgets.
+
 ### Hyperparameters
 
 #### Full SFT (default)
 
 | Parameter | Value |
 |-----------|-------|
-| **Learning Rate** | 5e-6 |
-| **Sequence Length** | 2048 tokens |
+| **Learning Rate** | 1e-5 (constant) |
+| **LR Warmup** | 30,000 samples |
+| **Sequence Packing** | Up to 256K context |
+| **Global Batch Size** | 64 |
+| **Micro-Batch Size** | 1 |
 | **Pack Size** | 4096 tokens |
 | **Loss Masking** | Role-based (assistant tokens only) |
-| **Loss Normalization** | Per-token (`calculate_per_token_loss: true`) |
+| **Loss Normalization** | Two-stage (token-level then sample-level) |
 | **Optimizer** | AdamW (beta1=0.9, beta2=0.95) |
-| **LR Schedule** | Cosine decay |
-| **LR Warmup** | 50 iterations |
 | **Weight Decay** | 0.1 |
 | **Precision** | BF16 mixed |
 | **MTP Loss Scaling** | 0.3 |
@@ -300,9 +371,10 @@ This stage uses the following components from the [NVIDIA AI Stack](../nvidia-st
 |---------|---------|
 | `finetune()` entry point | SFT training with pre-loaded checkpoint |
 | Role-based loss masking | Only compute loss on assistant tokens |
+| Two-stage loss | Token-level then sample-level normalization |
 | Mixed precision (BF16) | Memory-efficient training |
-| Packed Parquet sequences | Efficient variable-length sequence handling |
-| Multi-token prediction | Continued MTP training during SFT |
+| Packed Parquet sequences | Efficient variable-length sequence handling (up to 256K) |
+| Multi-token prediction | Continued MTP training during SFT (loss scaling 0.3) |
 
 ### Parallelism Configuration
 
@@ -336,11 +408,17 @@ gitlab-master.nvidia.com/dl/joc/nemo-ci/liding_r25.11-super-v3/train:pipe.446805
 
 ---
 
+## Next Steps
+
+After SFT completes, proceed to [Stage 2: RL](./rl.md) for reinforcement learning alignment.
+
 ## Reference
 
+- [Nemotron 3 Super Tech Report](TBD) — SFT methodology
 - [Megatron-Bridge Nemotron 3 Super](https://github.com/NVIDIA-NeMo/Megatron-Bridge/blob/super-v3/docs/models/llm/nemotron3-super.md) — MB documentation and examples
 - [NVIDIA AI Stack](../nvidia-stack.md) — Megatron-Core, Megatron-Bridge documentation
 - [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system
 - [Stage 0: Pretraining](./pretrain.md) — Pretrain the base model
+- [Stage 2: RL](./rl.md) — Reinforcement learning alignment
 - **Recipe Source**: `src/nemotron/recipes/super3/stage1_sft/` — Implementation details
 - [Back to Overview](./README.md)

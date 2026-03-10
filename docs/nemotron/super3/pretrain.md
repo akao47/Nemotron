@@ -2,7 +2,7 @@
 
 This stage trains the base Nemotron 3 Super model using [Megatron-Bridge](../nvidia-stack.md#megatron-bridge).
 
-Nemotron 3 Super is a **hybrid Mamba-Transformer-MoE** model with multi-token prediction (MTP), combining state-space models for efficiency, attention for global context, mixture-of-experts for capacity, and MTP for improved training signal.
+Nemotron 3 Super is a **hybrid Mamba-Transformer-MoE** model with multi-token prediction (MTP) and LatentMoE, combining state-space models for efficiency, attention for global context, LatentMoE for hardware-aware sparse scaling, and MTP for improved training signal and inference acceleration.
 
 ---
 
@@ -12,38 +12,170 @@ Nemotron 3 Super is a **hybrid Mamba-Transformer-MoE** model with multi-token pr
 
 ### Model Architecture
 
-Nemotron 3 Super uses a **hybrid Mamba-Transformer-MoE** architecture with multi-token prediction:
+Nemotron 3 Super extends the hybrid Mamba-Transformer MoE design from Nemotron 3 Nano to **120.6B total parameters** with a constrained active budget of **12.7B parameters** (12.1B excluding embeddings) per forward pass. The architecture is defined by three core pillars:
 
-| Feature | Description |
-|---------|-------------|
-| **Mamba-2 layers** | Efficient linear-time sequence processing |
-| **Attention layers** | Global information mixing at strategic intervals |
-| **MoE layers** | Sparse computation with routed + shared experts |
-| **Multi-Token Prediction** | MTP layers for improved training signal |
-| **DeepEP** | Deep expert parallelism support |
+#### Architecture Dimensions
 
-**Key design choices:**
+| Configuration | Value |
+|---------------|-------|
+| **Total Layers** | 88 |
+| **Model Dimension** | 4096 |
+| **Q-Heads** | 32 |
+| **KV-Heads** | 2 |
+| **Head Dimension** | 128 |
+| **Mamba State Dimension** | 128 |
+| **Mamba Groups** | 8 |
+| **Mamba Heads** | 128 |
+| **Mamba Head Dimension** | 64 |
+| **Expert Hidden Dimension** | 2688 |
+| **Shared Expert Intermediate Size** | 5376 |
+| **Total Experts per Layer** | 512 |
+| **Top-k (Activated Experts)** | 22 |
+| **MoE Latent Size** | 1024 |
+| **MTP Layers (shared weight)** | 2 |
 
-- **Shared expert overlap**: Configurable shared expert computation overlapping with routing
-- **MTP with repeated layers**: MTP layers use repeated layer optimization to reduce memory
-- **Aux-loss-free MoE balancing**: Router bias adjustment without auxiliary losses
+#### LatentMoE: Hardware-Aware Expert Design
+
+Nemotron 3 Super is the first model to scale sparsely using **LatentMoE** rather than standard MoE layers. In LatentMoE, input tokens are projected from the hidden dimension $d$ into a smaller latent dimension $\ell$ (1024) for routing and expert computation, reducing routed parameter loads and all-to-all traffic by a factor of $d/\ell$.
+
+These savings are used to increase both the total number of experts (to 512) and the top-k active experts per token (to 22), improving model accuracy at approximately constant inference cost. All non-routed computations—including the routing gate, shared expert computation, and non-expert layers—remain in the full hidden dimension $d$.
+
+**Key design principles:**
+- Reducing hidden dimension $d$ for routed computation relieves memory bandwidth and communication bottlenecks
+- Increasing both total experts $N$ and active experts $K$ improves quality by exponentially expanding the space of expert combinations
+- Shared experts provide additional knowledge sharing across tokens
+
+The MoE blocks employ squared ReLU activations, a sigmoid router with expert biasing, and aux-loss-free load balancing (update rate $10^{-3}$) paired with standard load balancing loss (coefficient $10^{-4}$).
+
+#### Multi-Token Prediction (MTP)
+
+MTP optimizes the model to predict multiple future tokens at each position, improving both training quality and inference efficiency:
+
+- **Quality improvement**: Encourages representations that capture multi-step dependencies and longer-range structure
+- **Inference acceleration**: MTP heads function as a native speculative decoding engine, generating candidate continuations verified by the main model in a single forward pass
+
+**Shared-weight design for robust autoregressive drafting:** Unlike standard MTP with $N$ independent heads, Nemotron 3 Super shares parameters across MTP heads during training. This yields a unified prediction head that can be applied recursively at inference to generate longer drafts with stable acceptance behavior. The model achieves the highest overall average acceptance length (3.45 on SPEED-Bench) across all domains compared to DeepSeek-R1 (2.70) and is competitive with Qwen3-Next (3.33).
+
+#### Hybrid Interleaving Pattern
+
+The 88-layer stack follows a periodic interleaving pattern where MoE layers are paired with Mamba-2 blocks. A limited number of self-attention layers are strategically inserted as global "anchors" to enable full-token interaction and long-range information routing. The attention layers employ Grouped-Query Attention (GQA) with 32 query heads and 2 KV heads. Consistent with the Nemotron family, the model omits positional embeddings, dropout, and bias terms in linear layers, uses RMSNorm for normalization, and maintains un-tied embedding and output weights.
+
+This synergy enables up to **6.4x higher inference throughput** compared to similarly-sized Transformer MoEs (e.g., GPT-OSS-120B) under 8K input / 16K output workloads.
 
 > For implementation details, see [Megatron-Bridge Nemotron 3 Super](https://github.com/NVIDIA-NeMo/Megatron-Bridge/blob/super-v3/docs/models/llm/nemotron3-super.md).
+
+### Pretraining Data
+
+#### New Synthetic Datasets
+
+Several new datasets were added for Super3, released as [Nemotron-Pretraining-Specialized-v1.1](https://huggingface.co/datasets/nvidia/Nemotron-Pretraining-Specialized-v1.1):
+
+| Dataset | Description | Scale |
+|---------|-------------|-------|
+| **Synthetic Code Concepts** | Python problems and solutions generated using concept taxonomy from HumanEval | ~15M problems |
+| **Synthetic Algorithmic** | Algorithmic Python problems with edge cases and unit tests | ~0.2B tokens |
+| **Synthetic Economics** | Economics MCQs across microeconomics, macroeconomics, econometrics | TBD |
+| **Synthetic Formal Logic** | Formal logic problems: natural language ↔ predicate logic, truth tables | TBD |
+| **Synthetic MCQ** | MMLU-style MCQs bootstrapped from MMLU auxiliary training set | ~3.5M samples (~1.6B tokens) |
+
+#### Data Mixture and Ordering
+
+The pretraining corpus spans **16 high-level categories** including web crawl data (5 quality tiers following Nemotron-CC taxonomy), math, Wikipedia, code, Nemotron-CC-Code, academic text, Crawl++, multilingual data, finepdfs, and synthetic SFT-style datasets. Reasoning-focused datasets are incorporated into pretraining following prior findings on their effectiveness.
+
+**Two-phase curriculum:**
+
+| Phase | Tokens | Focus | Proportion |
+|-------|--------|-------|------------|
+| Phase 1 | 20T (80%) | Data diversity — broad coverage and generalization | Higher weight on crawl data |
+| Phase 2 | 5T (20%) | High-quality sources — refined model performance | Higher weight on Wikipedia, curated sources |
 
 ### Hyperparameters
 
 | Parameter | Value |
 |-----------|-------|
-| **Batch Size** | 3,072 sequences |
+| **Total Training Tokens** | 25 trillion |
+| **Batch Size** | 3,072 sequences (~25.17M tokens/batch) |
 | **Sequence Length** | 8,192 tokens |
 | **Peak Learning Rate** | 4.5e-4 |
 | **Minimum Learning Rate** | 4.5e-6 |
 | **Optimizer** | AdamW (beta1=0.9, beta2=0.95) |
 | **Weight Decay** | 0.1 |
 | **LR Schedule** | WSD (Warmup-Stable-Decay) |
-| **LR Warmup** | 333 iterations |
+| **LR Warmup** | 200B tokens |
+| **LR Decay** | minus-sqrt schedule over final 5T tokens |
 | **MTP Loss Scaling** | 0.3 |
 | **Precision** | BF16 mixed (NVFP4 mixed for B200) |
+
+### NVFP4 Pretraining
+
+Nemotron 3 Super was trained with NVFP4 precision on B200 GPUs for the entire 25T token horizon, demonstrating stable and accurate low-precision pretraining at scale.
+
+| Layer Type | Format | Rationale |
+|------------|--------|-----------|
+| All Linear Layers (default) | NVFP4 | — |
+| Final 15% of Network | BF16 | Training stability at scale |
+| Latent Projections | BF16 | Negligible step-time impact |
+| MTP Layers | BF16 | Preserves MTP capabilities |
+| QKV & Attention Projections | BF16 | Maintains fidelity of attention layers |
+| Mamba Output Projection | MXFP8 | Mitigates underflows observed at smaller scales |
+| Embedding Layers | BF16 | — |
+
+Testing showed that switching all tensors to MXFP8 before LR annealing improved the loss trajectory but yielded no gains in downstream task accuracy, confirming the NVFP4 recipe achieves accuracy parity throughout the full token horizon.
+
+### Checkpoint Merging
+
+During the stable phase of the WSD learning rate schedule, individual checkpoints exhibit noisy benchmark performance. Following recent work on weight-space merging, checkpoint merging (weighted averaging over a sliding window of recent checkpoints) produces stronger readouts of model quality without requiring dedicated learning rate decay runs.
+
+| Metric | Value |
+|--------|-------|
+| **Improvement** | 2–4 points on 12-benchmark average during stable LR phase |
+| **FLOP Savings** | ~16% of total pretraining budget (eliminates ~4T tokens of decay-run compute) |
+| **Merge Schedule** | minus-sqrt decay emulation |
+| **Checkpoint Interval** | Every 2,000 iterations (~50B tokens) |
+| **Merge Windows Evaluated** | 125B, 250B, 500B tokens |
+
+The final base model checkpoint selected for downstream alignment was a 500B merge.
+
+### Long-Context Extension
+
+A long-context phase (LC-Phase) at the end of pretraining extends the model to **1M token context**:
+
+| Parameter | Value |
+|-----------|-------|
+| **Context Length** | 1,048,576 (1M) tokens |
+| **Learning Rate** | 4.5e-6 (constant) |
+| **Global Batch Size** | 16 |
+| **Context Parallelism** | 64-way |
+| **Tensor Parallelism** | 2-way |
+| **Expert Parallelism** | 64-way |
+| **Hardware** | GB200 GPUs |
+| **Phase 1** | 34B tokens on 1M context |
+| **Phase 2** | 17B tokens alternating 1M and 4K sequences (mitigates math benchmark impact) |
+
+Data blend: 20% document QA data (reused from Nemotron 2 & 3 Nano), 80% downscaled Phase 2 data.
+
+### Base Model Evaluations
+
+| Task | N-Super-3 Base | Ling-flash Base-2.0 | GLM-4.5 Air-Base |
+|------|----------------|---------------------|-------------------|
+| **General** | | | |
+| MMLU | **85.89** | 81.0 | 81.0 |
+| MMLU-Pro 5-shot | **74.65** | 62.1 | 58.2 |
+| AGIEval English CoT | **77.45** | 61.7 | 59.4 |
+| **Math** | | | |
+| GSM8K CoT | **91.05** | 90.4 | 82.6 |
+| MATH | **84.68** | 62.4 | 49.6 |
+| MATH Level 5 | **70.00** | 39.8 | 26.3 |
+| AIME 2024 pass@32 | **53.33** | 30.0 | 20.0 |
+| **Code** | | | |
+| HumanEval+ avg@32 | **79.40** | 70.1 | 76.3 |
+| MBPP+ avg@32 | 77.60 | 77.3 | **77.5** |
+| **Commonsense** | | | |
+| ARC Challenge | **95.65** | 94.8 | 93.9 |
+| HellaSwag | **88.99** | 84.5 | 87.7 |
+| OpenBookQA | **50.20** | 47.0 | 47.8 |
+| PIQA | **85.31** | — | 84.0 |
+| WinoGrande | 78.69 | 77.4 | **83.2** |
 
 ---
 
@@ -159,6 +291,7 @@ This stage uses the following components from the [NVIDIA AI Stack](../nvidia-st
 |-----------|------|---------------|
 | [Megatron-Core](../nvidia-stack.md#megatron-core) | Distributed training primitives (TP, PP, DP, EP, CP, SP) | [GitHub](https://github.com/NVIDIA/Megatron-LM) |
 | [Megatron-Bridge](../nvidia-stack.md#megatron-bridge) | Model definitions, training loop, checkpoint management | [Docs](https://docs.nvidia.com/nemo/megatron-bridge/latest/) |
+| [Transformer Engine](https://github.com/NVIDIA/TransformerEngine) | NVFP4 GEMM kernels (cuBLAS backend) | [GitHub](https://github.com/NVIDIA/TransformerEngine) |
 
 ### Parallelism Configuration
 
@@ -188,6 +321,7 @@ After pretraining completes, proceed to [Stage 1: SFT](./sft.md) for instruction
 
 ## Reference
 
+- [Nemotron 3 Super Tech Report](TBD) — Pretraining methodology
 - [Megatron-Bridge Nemotron 3 Super](https://github.com/NVIDIA-NeMo/Megatron-Bridge/blob/super-v3/docs/models/llm/nemotron3-super.md) — MB documentation and examples
 - [NVIDIA AI Stack](../nvidia-stack.md) — Megatron-Core, Megatron-Bridge documentation
 - [Artifact Lineage](../../nemo_runspec/artifacts.md) — W&B artifact system

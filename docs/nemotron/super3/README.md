@@ -1,6 +1,6 @@
 # Nemotron 3 Super Training Recipe
 
-A complete, reproducible training pipeline for Nemotron 3 Super—an open, high-capacity Mixture-of-Experts hybrid Mamba-Transformer model with multi-token prediction.
+A complete, reproducible training pipeline for Nemotron 3 Super—an open, high-capacity Mixture-of-Experts hybrid Mamba-Transformer model with LatentMoE and multi-token prediction.
 
 ## Quick Start
 
@@ -49,45 +49,89 @@ $ uv run nemotron super3 pretrain --run YOUR-CLUSTER
 // Stage 1: Supervised Fine-Tuning
 $ uv run nemotron super3 data prep sft --run YOUR-CLUSTER
 $ uv run nemotron super3 sft --run YOUR-CLUSTER
+
+// Stage 2: Reinforcement Learning
+$ uv run nemotron super3 data prep rl --run YOUR-CLUSTER
+$ uv run nemotron super3 rl --run YOUR-CLUSTER
+
+// Stage 3: Evaluation
+$ uv run nemotron super3 eval --run YOUR-CLUSTER
 ```
 
 </div>
 
 ## Resources
 
+- **Tech Report**: [Nemotron 3 Super Technical Report](TBD)
+- **Model Weights**:
+  - [NVIDIA-Nemotron-3-Super-120B-A12B-BF16](TBD) (Post-trained model)
+  - [NVIDIA-Nemotron-3-Super-120B-A12B-FP8](TBD) (FP8 quantized)
+  - [NVIDIA-Nemotron-3-Super-120B-A12B-NVFP4](TBD) (NVFP4 quantized)
+  - [NVIDIA-Nemotron-3-Super-120B-A12B-Base-BF16](TBD) (Base model)
+- **Training Datasets**:
+  - [Nemotron-Pretraining-Specialized-v1.1](https://huggingface.co/datasets/nvidia/Nemotron-Pretraining-Specialized-v1.1) (Synthetic pretraining data)
 - **Megatron-Bridge Docs**: [Nemotron 3 Super](https://github.com/NVIDIA-NeMo/Megatron-Bridge/blob/super-v3/docs/models/llm/nemotron3-super.md)
-- **Model Weights**: TBD
 
 ## Training Pipeline
 
 | Stage | Name | Purpose | Guide |
 |-------|------|---------|-------|
-| 0 | [Pretraining](./pretrain.md) | Base model training with MoE and multi-token prediction | [pretrain.md](./pretrain.md) |
-| 1 | [SFT](./sft.md) | Multi-domain instruction tuning | [sft.md](./sft.md) |
+| 0 | [Pretraining](./pretrain.md) | Base model training on 25T tokens with LatentMoE and MTP | [pretrain.md](./pretrain.md) |
+| 1 | [SFT](./sft.md) | Multi-domain instruction tuning with two-stage loss | [sft.md](./sft.md) |
+| 2 | [RL](./rl.md) | Multi-environment RLVR + SWE-RL + RLHF alignment | [rl.md](./rl.md) |
+| 3 | [Quantization](./quantization.md) | FP8 and NVFP4 post-training quantization | [quantization.md](./quantization.md) |
+| 4 | [Evaluation](./evaluate.md) | Benchmark evaluation across 20+ benchmarks | [evaluate.md](./evaluate.md) |
 
 ## Model Specifications
 
 | Specification | Value |
 |---------------|-------|
-| **Architecture** | Hybrid Mamba-Transformer with sparse MoE and MTP |
-| **Expert Parallelism** | 8-way (default) |
-| **MoE** | Routed experts with shared expert, DeepEP support |
-| **Multi-Token Prediction** | MTP layers with repeated layer optimization |
+| **Total Parameters** | 120.6B |
+| **Active Parameters** | 12.7B (per forward pass) |
+| **Pretraining Tokens** | 25 trillion |
+| **Context Length** | Up to 1M tokens |
+| **Architecture** | Hybrid Mamba-Transformer with LatentMoE and MTP |
+| **Layers** | 88 (periodic Mamba-MoE interleaving with attention anchors) |
+| **Model Dimension** | 4096 |
+| **Total Experts per Layer** | 512 |
+| **Active Experts (Top-k)** | 22 |
+| **MoE Latent Dimension** | 1024 |
+| **MTP Layers** | 2 (shared weight) |
 | **Precision** | BF16 mixed (NVFP4 for pretrain on B200) |
+
+> For architecture details, see the [Tech Report](TBD).
 
 ## Stage Summaries
 
 ### Stage 0: Pretraining
 
-Multi-node pretraining with MoE, multi-token prediction, and WSD learning rate schedule. Default parallelism: TP=4, EP=8, SP=True.
+Two-phase curriculum on 25 trillion tokens: Phase 1 (20T, 80%) focuses on diversity across 16 data categories; Phase 2 (5T, 20%) emphasizes high-quality sources. Introduces LatentMoE for hardware-aware sparse scaling, MTP for inference acceleration, and checkpoint merging for quality tracking during the stable LR phase. Includes long-context extension to 1M tokens.
 
 > [Pretraining Guide](./pretrain.md)
 
 ### Stage 1: Supervised Fine-Tuning
 
-Full-parameter SFT or LoRA fine-tuning with packed Parquet sequences and role-based loss masking. Full SFT default: TP=1, EP=8; LoRA default: TP=1, EP=1.
+Multi-domain instruction tuning over 7M samples covering 15+ data domains including competition math/code, software engineering, agentic programming, CUDA, financial reasoning, long context, safety, search, terminal use, SQL, and more. Uses a novel two-stage SFT loss (token-level then sample-level) and continues MTP training from pretraining. Supports three reasoning modes: reasoning-off, regular, and low-effort.
 
 > [SFT Guide](./sft.md)
+
+### Stage 2: Reinforcement Learning
+
+Three-stage RL pipeline: (1) multi-environment RLVR across 21 environments and 37 datasets covering math, code, STEM, safety, agentic tasks, and reasoning gym; (2) SWE-RL for end-to-end software engineering using OpenHands with Apptainer containers; (3) RLHF with a principle-following GenRM (Qwen3-235B initialization).
+
+> [RL Guide](./rl.md)
+
+### Stage 3: Quantization
+
+Post-training quantization producing FP8 (Hopper) and NVFP4 (Blackwell) checkpoints. NVFP4 uses a hybrid PTQ recipe with AutoQuantize mixed-precision NAS achieving 99.8% median accuracy vs BF16. Includes QAD (Quantization-Aware Distillation) and Mamba state quantization with FP16 stochastic rounding.
+
+> [Quantization Guide](./quantization.md)
+
+### Stage 4: Evaluation
+
+Comprehensive evaluation across general knowledge (MMLU-Pro), reasoning (AIME25, HMMT, GPQA, LiveCodeBench, SciCode, HLE), agentic (TerminalBench, SWE-Bench with 3 harnesses, TauBench V2, BrowseComp, BIRD), chat & IF (IFBench, Multi-Challenge, Arena-Hard-V2), long context (AA-LCR, RULER at 256K/512K/1M), and multilingual (MMLU-ProX, WMT24++).
+
+> [Evaluation Guide](./evaluate.md)
 
 ## Execution Options
 
@@ -120,11 +164,37 @@ flowchart TB
         cmd1 --> model1["ModelArtifact-sft"]
     end
 
+    subgraph rl["Stage 2: RL"]
+        data2["DataBlendsArtifact-rl<br/>(JSONL)"] --> cmd2["uv run nemotron super3 rl"]
+        model1 --> cmd2
+        cmd2 --> model2["ModelArtifact-rl"]
+    end
+
+    subgraph quant["Stage 3: Quantization"]
+        model2 --> cmd3["quantize"]
+        cmd3 --> model3a["FP8 Checkpoint"]
+        cmd3 --> model3b["NVFP4 Checkpoint"]
+    end
+
+    subgraph eval["Stage 4: Evaluation"]
+        model2 --> cmd4["uv run nemotron super3 eval"]
+        model3a -.-> cmd4
+        model3b -.-> cmd4
+        cmd4 --> results["Evaluation Results<br/>(W&B)"]
+    end
+
     style pretrain fill:#e1f5fe,stroke:#2196f3
     style sft fill:#f3e5f5,stroke:#9c27b0
+    style rl fill:#e8f5e9,stroke:#4caf50
+    style quant fill:#fff3e0,stroke:#ff9800
+    style eval fill:#fce4ec,stroke:#e91e63
 ```
 
 > [Artifact Lineage & W&B Integration](../../nemo_runspec/artifacts.md)
+
+## Open-Source Data
+
+> **Note**: These recipes train exclusively on the open-sourced subset of training data. Results will differ from the tech report benchmarks, which used additional proprietary data. Use these recipes as reference implementations to apply the methodology with your own data.
 
 ## CLI Reference
 
@@ -144,6 +214,8 @@ Usage: nemotron super3 [OPTIONS] COMMAND [ARGS]...
 ╭─ Training Stages ────────────────────────────────────────────────────────╮
 │ pretrain   Run pretraining with Megatron-Bridge (stage0).                │
 │ sft        Run supervised fine-tuning with Megatron-Bridge (stage1).     │
+│ rl         Run reinforcement learning with NeMo-RL GRPO (stage2).        │
+│ eval       Run evaluation with NeMo-Evaluator (stage4).                  │
 ╰──────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -164,6 +236,9 @@ wandb login
 
 - [Stage 0: Pretraining](./pretrain.md)
 - [Stage 1: SFT](./sft.md)
+- [Stage 2: RL](./rl.md)
+- [Stage 3: Quantization](./quantization.md)
+- [Stage 4: Evaluation](./evaluate.md)
 - [Artifact Lineage](../../nemo_runspec/artifacts.md)
 - [Execution through NeMo-Run](../../nemo_runspec/nemo-run.md)
 - [W&B Integration](../wandb.md)
