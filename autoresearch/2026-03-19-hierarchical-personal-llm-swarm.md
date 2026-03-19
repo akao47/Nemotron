@@ -169,6 +169,71 @@ The automation engine handles everything deterministic:
 
 Users configure the automation engine through hooks and workflow definitions — this is the "customize the shell" part. They write rules, not prompts. The AI stays in its lane: reasoning about ambiguous situations and generating language.
 
+## The Interface: Conversation-First, Visual-as-Output
+
+The UI paradigm for this product is neither a chat app nor a visual builder — it's both, working in tandem.
+
+**Split-Panel Layout**
+
+```
+┌───────────────────────┬────────────────────────────────┐
+│                       │                                │
+│   CHAT PANEL          │   VISUAL PANEL                 │
+│   (conversational     │   (pipeline materializes       │
+│    builder)           │    in real-time)               │
+│                       │                                │
+│   "Set up a workflow  │   ┌────────┐    ┌────────┐    │
+│    that classifies    │   │classify ├───→│ draft  │    │
+│    my emails, drafts  │   │ (micro) │    │ (nano) │    │
+│    replies to urgent  │   └───┬────┘    └────────┘    │
+│    ones, and files    │       │                        │
+│    the rest"          │   ┌───▼────┐                   │
+│                       │   │  file  │                   │
+│   "Done. Added        │   │ (auto) │                   │
+│    3-node pipeline:   │   └────────┘                   │
+│    classify → route   │                                │
+│    → draft/file"      │   🔑 [SMTP Password: ••••]    │
+│                       │   🔑 [API Key: ••••••••]      │
+│                       │                                │
+└───────────────────────┴────────────────────────────────┘
+```
+
+The left panel is a Claude Code-like conversational interface — the user talks, the system builds. The right panel renders the pipeline as an n8n-style node graph that materializes in real-time as the conversation progresses. Users watch their workflow take shape as they describe it.
+
+This is **conversation-first, visual-as-output** — the inverse of n8n's approach. n8n is visual-first, code-optional. This product is conversation-first, visual-as-confirmation. The user never drags a node or draws a wire. They talk. The system builds. The visual panel proves it happened correctly.
+
+**Three Visual Modes**
+
+The visual panel serves three distinct purposes depending on context:
+
+1. **Workflow Builder Mode**: When creating or editing workflows through conversation. Shows the n8n-style pipeline being constructed. Each node represents a model slot (micro, nano) or automation step (code). Wires show data flow.
+
+2. **Model Inspector Mode**: Each individual LLM has its own n8n-style view. Drill into any model node to see its internal pipeline — what preprocessing happens, what the model actually does, what postprocessing follows. This gives transparency into the black box.
+
+3. **Swarm Monitor Mode**: A Pixel Agents-style real-time visualization of the entire swarm in operation. Which models are active, what tasks are flowing, what's queued, what's complete. This is the operational dashboard — and the visual "wow factor" that makes the product viral-worthy.
+
+**Credentials: The Only Click-to-Input**
+
+Secrets (API keys, passwords, tokens) are the one exception to "everything through conversation." When a workflow node requires a credential, the visual panel shows a secure input field on that node. The user clicks and types the value directly. This is deliberate:
+
+- Secrets never pass through the AI's context window — security by design
+- It works like a visual `.env` editor scoped to each node
+- The user can see exactly which nodes need which credentials
+- Credential values are stored encrypted, never logged, never sent to any model
+
+This design means the AI orchestrator is structurally incapable of leaking secrets — it literally never sees them. The conversation handles logic; the visual panel handles sensitive data.
+
+**Why This UI Model Matters Architecturally**
+
+The split-panel design isn't cosmetic — it constrains the architecture in productive ways:
+
+- The orchestrator must emit structured events ("node created", "wire added", "credential needed") that the visual panel can render. This forces a clean event-driven architecture.
+- The visual panel must be a real-time reactive view of the system state — not a separate data model. What you see is what's running.
+- Credential isolation is enforced at the UI layer, not just the API layer. The AI literally cannot access secrets because they flow through a different channel.
+- Workflow templates become first-class artifacts — the visual panel renders them, the conversation customizes them, and the system executes them. Templates are the bridge between "easy to start" and "powerful to customize."
+
+The product this creates is a **guard-railed, simplified Claude Code with a visual feedback layer.** The conversational interface gives power users full flexibility. The visual panel gives all users immediate understanding. The credential isolation gives everyone security. And the swarm monitor gives the product its viral moment — watching a hierarchy of personalized AI models work together in real-time is something no one has shipped yet.
+
 ## Open Thread: Personal AI as a Product Category
 
 If you own the full model stack — orchestrator, nanos, micros, all trained on personal data — you're not building "an app that uses AI." You're building **a personal AI operating system.**
