@@ -4,3 +4,8 @@ date	iteration	slug	status	summary
 2026-03-21	3	obsidian-vault-as-swarm-memory	keep	Obsidian vault serves as shared memory bus via 3 layers (embeddings, MCP read/write, graph RAG) mapped to 3 model tiers
 2026-03-21	4	claude-code-sidecar-architecture	keep	Three-stage memory pipeline (capture→process→inject) using hooks, processing in the swarm not in Claude's context window
 2026-03-21	5	orchestration-ollama-is-enough	keep	Ollama alone handles 3-model serving for single user — no custom orchestration needed yet, phased complexity path
+2026-03-21	6	daily-retraining-is-adapter-swap	keep	Daily retraining is a 5-15 min LoRA adapter swap (~3MB), not model training. RAG handles recall (80%), LoRA handles personality (20%)
+2026-03-21	7	micro-capability-ceiling	keep	135M micro is a bouncer (classify, route, retrieve), not a bartender (explain, teach). Two-layer split on M4 16GB at ~9GB total
+2026-03-21	8	link-to-learning-pipeline	keep	Link-to-learning needs 14B on PC 64GB — comprehension + context mapping + pedagogical synthesis. CPU-only at 2-6 tok/s is fine for batch
+2026-03-21	9	training-economics-free-vs-cloud	keep	Micro retrains daily for $0 locally, 14B fine-tunes monthly for $1-6 on RunPod, nano never needs fine-tuning. Total: ~$3-6/month
+2026-03-21	10	two-machine-split-brain	keep	Two cheap machines beat one expensive one — Mac Mini (3-5W sidecar) + PC (on-demand compute). Syncthing + Ollama API connect them
