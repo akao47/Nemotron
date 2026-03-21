@@ -14,3 +14,4 @@ date	iteration	slug	status	summary
 2026-03-21	13	a-day-with-nemoclaw	keep	Hour-by-hour walkthrough of what Nemoclaw+swarm does daily — morning briefing, coding sidecar, link-to-learning, daily maintenance
 2026-03-21	14	the-code-layer-beneath-the-swarm	keep	70% of Nemoclaw is deterministic code, not AI. Build plumbing first, add intelligence gradually.
 2026-03-21	15	what-you-actually-gain-by-owning-it	keep	Honest cost/capability accounting: local swarm gives persistent memory and privacy, not better reasoning
+2026-03-21	16	nemoclaw-swarm-synthesis	keep	Meta-synthesis of 5 findings: one Nemoclaw, filesystem events, daily walkthrough, code layer first, honest value prop
