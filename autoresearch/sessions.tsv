@@ -9,3 +9,7 @@ date	iteration	slug	status	summary
 2026-03-21	8	link-to-learning-pipeline	keep	Link-to-learning needs 14B on PC 64GB — comprehension + context mapping + pedagogical synthesis. CPU-only at 2-6 tok/s is fine for batch
 2026-03-21	9	training-economics-free-vs-cloud	keep	Micro retrains daily for $0 locally, 14B fine-tunes monthly for $1-6 on RunPod, nano never needs fine-tuning. Total: ~$3-6/month
 2026-03-21	10	two-machine-split-brain	keep	Two cheap machines beat one expensive one — Mac Mini (3-5W sidecar) + PC (on-demand compute). Syncthing + Ollama API connect them
+2026-03-21	11	one-nemoclaw-not-many	keep	Handoff pattern is the right topology for 3-model personal swarm — one Nemoclaw (micro as router), not agent-per-model
+2026-03-21	12	swarm-is-filesystem-events	keep	The swarm is already event-driven — filesystem/Syncthing/hooks IS the event bus, no message broker needed
+2026-03-21	13	a-day-with-nemoclaw	keep	Hour-by-hour walkthrough of what Nemoclaw+swarm does daily — morning briefing, coding sidecar, link-to-learning, daily maintenance
+2026-03-21	14	the-code-layer-beneath-the-swarm	keep	70% of Nemoclaw is deterministic code, not AI. Build plumbing first, add intelligence gradually.
