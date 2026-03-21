@@ -1,0 +1,2 @@
+date	iteration	slug	status	summary
+2026-03-21	1	hardware-matrix-moe-changes-everything	keep	MoE architecture inverts hardware logic — unified memory (Mac M4 Pro 64GB) beats discrete GPU for 120B/12B-active model deployment
