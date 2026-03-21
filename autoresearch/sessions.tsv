@@ -2,3 +2,4 @@ date	iteration	slug	status	summary
 2026-03-21	1	hardware-matrix-moe-changes-everything	keep	MoE architecture inverts hardware logic — unified memory (Mac M4 Pro 64GB) beats discrete GPU for 120B/12B-active model deployment
 2026-03-21	2	model-selection-the-135m-pivot	keep	No 50M model exists off-the-shelf; SmolLM2-135M is the pragmatic micro, Phi-4-mini/Qwen3.5-4B for nano, Nemotron 3 Super for super
 2026-03-21	3	obsidian-vault-as-swarm-memory	keep	Obsidian vault serves as shared memory bus via 3 layers (embeddings, MCP read/write, graph RAG) mapped to 3 model tiers
+2026-03-21	4	claude-code-sidecar-architecture	keep	Three-stage memory pipeline (capture→process→inject) using hooks, processing in the swarm not in Claude's context window
